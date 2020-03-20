@@ -56,6 +56,7 @@
 #include <DW1000Ng.hpp>
 #include <DW1000NgUtils.hpp>
 #include <DW1000NgRanging.hpp>
+#include <math.h>
 
 // connection pins
 const uint8_t PIN_RST = 9; // reset pin
@@ -122,8 +123,8 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 };
 
 //user edit -> buffer set up
-uint8_t uwbdata[4] = {0,};
-byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
+
+bool data_received = false;
 /* 
 
 */
@@ -139,7 +140,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
   	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
-    DW1000Ng::setDeviceAddress(1);
+    DW1000Ng::setDeviceAddress(1); // device set up for each data set : send data to the rx buff.
 	
     DW1000Ng::setAntennaDelay(16436);
     
@@ -214,7 +215,8 @@ void receiver() {
 }
 
 void loop() {
-    Serial.write(txbuf,sizeof(txbuf));
+    //  write serial 
+    // data   
     int32_t curMillis = millis();
     if (!sentAck && !receivedAck) {
         // check if inactive
@@ -251,6 +253,7 @@ void loop() {
             noteActivity();
         }
         else if (msgId == RANGE) {
+            //data_received = true;
             timeRangeReceived = DW1000Ng::getReceiveTimestamp();
             expectedMsgId = POLL;
             if (!protocolFailed) {
@@ -265,16 +268,21 @@ void loop() {
                                                             timeRangeSent, 
                                                             timeRangeReceived);
                 /* Apply simple bias correction */
-                distance = DW1000NgRanging::correctRange(distance);
+                distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
+                int dist = (int)(distance * 100) // 아두이노 : 16비트 연산가능
+                int power = (int)DW1000Ng::getReceivePower();
                 
-                String rangeString = "Range: "; rangeString += distance; rangeString += " m";
-                rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
-                rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
-                Serial.println(rangeString);
-                //Serial.print("FP power is [dBm]: "); Serial.print(DW1000Ng::getFirstPathPower());
-                //Serial.print("RX power is [dBm]: "); Serial.println(DW1000Ng::getReceivePower());
-                //Serial.print("Receive quality: "); Serial.println(DW1000Ng::getReceiveQuality());
-                // update sampling rate (each second)
+                txbuf[0] = (dist << 8) & 0xFF;
+                txbuf[1] = dist & 0xFF;
+                txbuf[2] = (power << 8) & 0xFF;
+                txbuf[3] = power & 0xFF;
+                
+                uint8_t uwbdata[4] = {0,};
+                byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
+                Serial.write(txbuf,sizeof(txbuf));
+
+              /*   
+              // update sampling rate (each second)
                 transmitRangeReport(distance * DISTANCE_OF_RADIO_INV);
                 successRangingCount++;
                 if (curMillis - rangingCountPeriod > 1000) {
@@ -282,6 +290,7 @@ void loop() {
                     rangingCountPeriod = curMillis;
                     successRangingCount = 0;
                 }
+              */  
             }
             else {
                 transmitRangeFailed();

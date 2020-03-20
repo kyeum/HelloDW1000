@@ -2073,7 +2073,7 @@ namespace DW1000Ng {
 		if(estRxPwr <= -88) {
 			return estRxPwr;
 		} else {
-			// approximation of Fig. 22 in user manual for dbm correction
+			// approximation of Fig. 22 in user manual -> 
 			estRxPwr += (estRxPwr+88)*corrFac;
 		}
 		return estRxPwr;
