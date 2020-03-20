@@ -121,6 +121,9 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
     true
 };
 
+//user edit -> buffer set up
+byte txbuf[4]={0xFF,0xFF,0xFF,0xFE};
+
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
@@ -131,7 +134,7 @@ void setup() {
     Serial.println(F("DW1000Ng initialized ..."));
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
-	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
+  	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
     DW1000Ng::setDeviceAddress(1);
 	
@@ -208,6 +211,7 @@ void receiver() {
 }
 
 void loop() {
+    Serial.write(txbuf,sizeof(txbuf));
     int32_t curMillis = millis();
     if (!sentAck && !receivedAck) {
         // check if inactive
@@ -284,4 +288,3 @@ void loop() {
         }
     }
 }
-
