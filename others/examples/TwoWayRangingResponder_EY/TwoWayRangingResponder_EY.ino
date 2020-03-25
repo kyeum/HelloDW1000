@@ -100,6 +100,12 @@ uint16_t successRangingCount = 0;
 uint32_t rangingCountPeriod = 0;
 float samplingRate = 0;
 
+//user defined data
+uint8_t uwbdata[4] = {0,};
+ 
+
+
+
 device_configuration_t DEFAULT_CONFIG = {
     false,
     true,
@@ -217,6 +223,10 @@ void receiver() {
 void loop() {
     //  write serial 
     // data   
+    uwbdata[0]++;
+    byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
+    Serial.write(txbuf,sizeof(txbuf));
+    
     int32_t curMillis = millis();
     if (!sentAck && !receivedAck) {
         // check if inactive
@@ -269,9 +279,10 @@ void loop() {
                                                             timeRangeReceived);
                 /* Apply simple bias correction */
                 distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
-                int dist = (int)(distance * 100) // 아두이노 : 16비트 연산가능
+                int dist = (int)(distance * 100); // 아두이노 : 16비트 연산가능
                 int power = (int)DW1000Ng::getReceivePower();
-                
+
+                /*
                 txbuf[0] = (dist << 8) & 0xFF;
                 txbuf[1] = dist & 0xFF;
                 txbuf[2] = (power << 8) & 0xFF;
@@ -280,6 +291,8 @@ void loop() {
                 uint8_t uwbdata[4] = {0,};
                 byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
                 Serial.write(txbuf,sizeof(txbuf));
+                */
+                
 
               /*   
               // update sampling rate (each second)
