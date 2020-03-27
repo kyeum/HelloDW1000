@@ -101,8 +101,9 @@ uint32_t rangingCountPeriod = 0;
 float samplingRate = 0;
 
 //user defined data
-uint8_t uwbdata[4] = {0,};
+uint8_t uwbdata[4] = {1,2,3,4};
 byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
+uint32_t tmr_1ms = 0;
 
 
 
@@ -138,6 +139,30 @@ bool data_received = false;
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
+    // Debug set timer 
+
+      /*  
+   cli();//stop interrupts
+  
+  //set timer0 interrupt at 2kHz
+    TCCR0A = 0;// set entire TCCR2A register to 0
+    TCCR0B = 0;// same for TCCR2B
+    TCNT0  = 0;//initialize counter value to 0
+    // set compare match register for 2khz increments
+    OCR0A = 124;// = (16*10^6) / (2000*64) - 1 (must be <256)
+    // turn on CTC mode
+    TCCR0A |= (1 << WGM01);
+    // Set CS01 and CS00 bits for 64 prescaler
+    TCCR0B |= (1 << CS01) | (1 << CS00);   
+    // enable timer compare interrupt
+    TIMSK0 |= (1 << OCIE0A);
+    sei();//allow interrupts
+
+
+  */
+  
+
+    
     delay(1000);
     Serial.println(F("### DW1000Ng-arduino-ranging-anchor ###"));
     // initialize the driver
@@ -171,7 +196,10 @@ void setup() {
     noteActivity();
     // for first time ranging frequency computation
     rangingCountPeriod = millis();
+
+
 }
+
 
 void noteActivity() {
     // update activity timestamp, so that we do not reach "resetPeriod"
@@ -224,9 +252,13 @@ void receiver() {
 void loop() {
     //  write serial 
     // data   
-    Serial.write(txbuf,sizeof(txbuf));
+    //if(tmr_1ms%10 ==0) {
+   // }
+
+    Serial.write(txbuf,sizeof(txbuf));    
+
     int32_t curMillis = millis();
-    
+
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (curMillis - lastActivity > resetPeriod) {
@@ -284,19 +316,9 @@ void loop() {
                 uwbdata[1] = (dist >> 8) & 0xFF;
                 uwbdata[2] = power & 0xFF; 
                 uwbdata[3] = (power >> 8) & 0xFF;
-                /*
-                txbuf[0] = (dist << 8) & 0xFF;
-                txbuf[1] = dist & 0xFF;
-                txbuf[2] = (power << 8) & 0xFF;
-                txbuf[3] = power & 0xFF;
-                
-                uint8_t uwbdata[4] = {0,};
-                byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
-                Serial.write(txbuf,sizeof(txbuf));
-                */
-                
+                String rangeString = "Range: "; rangeString += distance;
+                Serial.println(rangeString);
 
-              /*   
               // update sampling rate (each second)
                 transmitRangeReport(distance * DISTANCE_OF_RADIO_INV);
                 successRangingCount++;
@@ -305,7 +327,7 @@ void loop() {
                     rangingCountPeriod = curMillis;
                     successRangingCount = 0;
                 }
-              */  
+              
             }
             else {
                 transmitRangeFailed();

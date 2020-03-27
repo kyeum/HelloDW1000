@@ -193,7 +193,6 @@ void transmitRange() {
 }
 
 void loop() {
-      Serial.println(F("0xFF"));
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
