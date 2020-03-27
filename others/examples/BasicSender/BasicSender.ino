@@ -88,7 +88,7 @@ void setup() {
   DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	//DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
-  DW1000Ng::setDeviceAddress(5);
+  DW1000Ng::setDeviceAddress(2);
   DW1000Ng::setNetworkId(10);
 
   DW1000Ng::setAntennaDelay(16436);
@@ -119,7 +119,7 @@ void handleSent() {
 void transmit() {
   // transmit some data
   Serial.print("Transmitting packet ... #"); Serial.println(sentNum);
-  String msg = "Hello DW1000Ng, it's #"; msg += sentNum;
+  String msg = "TEST3, it's #"; msg += sentNum;
   DW1000Ng::setTransmitData(msg);
   // delay sending the message for the given amount
   delay(1000);

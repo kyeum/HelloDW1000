@@ -214,7 +214,6 @@ void receiver() {
 }
 
 void loop() {
-    Serial.write(txbuf,sizeof(txbuf));
     int32_t curMillis = millis();
     if (!sentAck && !receivedAck) {
         // check if inactive
@@ -273,7 +272,7 @@ void loop() {
                 Serial.println(rangeString);
                 //Serial.print("FP power is [dBm]: "); Serial.print(DW1000Ng::getFirstPathPower());
                 //Serial.print("RX power is [dBm]: "); Serial.println(DW1000Ng::getReceivePower());
-                //Serial.print("Receive quality: "); Serial.println(DW1000Ng::getReceiveQuality());
+                Serial.print("Receive quality: "); Serial.println(DW1000Ng::getReceiveQuality());
                 // update sampling rate (each second)
                 transmitRangeReport(distance * DISTANCE_OF_RADIO_INV);
                 successRangingCount++;

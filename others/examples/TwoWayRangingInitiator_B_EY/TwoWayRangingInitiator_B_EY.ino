@@ -64,11 +64,11 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 0
-#define POLL_ACK 1
-#define RANGE 2
-#define RANGE_REPORT 3
-#define RANGE_FAILED 255
+#define POLL 4
+#define POLL_ACK 5
+#define RANGE 6
+#define RANGE_REPORT 7
+#define RANGE_FAILED 254
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
 // message sent/received state
@@ -112,17 +112,18 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
-    Serial.println(F("###Tag ###"));
+    Serial.println(F("RANGE TAG B"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println("DW1000Ng initialized ...");
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
-	  DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
+	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
     DW1000Ng::setNetworkId(10);
-    
-    DW1000Ng::setAntennaDelay(0);
+    DW1000Ng::setDeviceAddress(3);
+
+    DW1000Ng::setAntennaDelay(16436);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
@@ -178,8 +179,8 @@ void transmitRange() {
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
 
-	 timeRangeSent = DW1000Ng::getSystemTimestamp();
-	 timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
+	timeRangeSent = DW1000Ng::getSystemTimestamp();
+	timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
     DW1000NgUtils::writeValueToBytes(futureTimeBytes, timeRangeSent, LENGTH_TIMESTAMP);
     DW1000Ng::setDelayedTRX(futureTimeBytes);
     timeRangeSent += DW1000Ng::getTxAntennaDelay();
@@ -193,10 +194,6 @@ void transmitRange() {
 }
 
 void loop() {
-<<<<<<< HEAD
-=======
-     // Serial.println(F("0xFF"));
->>>>>>> e0801c5476b13292c5925c1686835b606d36a5f9
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
