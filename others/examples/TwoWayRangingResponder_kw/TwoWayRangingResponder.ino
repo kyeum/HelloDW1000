@@ -121,12 +121,6 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
     true
 };
 
-//user edit -> buffer set up
-uint8_t uwbdata[4] = {0,};
-byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
-/* 
-
-*/
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
@@ -137,7 +131,7 @@ void setup() {
     Serial.println(F("DW1000Ng initialized ..."));
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
-  	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
+	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
     DW1000Ng::setDeviceAddress(1);
 	
@@ -272,7 +266,7 @@ void loop() {
                 Serial.println(rangeString);
                 //Serial.print("FP power is [dBm]: "); Serial.print(DW1000Ng::getFirstPathPower());
                 //Serial.print("RX power is [dBm]: "); Serial.println(DW1000Ng::getReceivePower());
-                Serial.print("Receive quality: "); Serial.println(DW1000Ng::getReceiveQuality());
+                //Serial.print("Receive quality: "); Serial.println(DW1000Ng::getReceiveQuality());
                 // update sampling rate (each second)
                 transmitRangeReport(distance * DISTANCE_OF_RADIO_INV);
                 successRangingCount++;
@@ -290,3 +284,4 @@ void loop() {
         }
     }
 }
+

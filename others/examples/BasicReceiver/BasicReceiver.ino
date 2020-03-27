@@ -87,7 +87,7 @@ void setup() {
 
   DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 
-  DW1000Ng::setDeviceAddress(6);
+  DW1000Ng::setDeviceAddress(5);
   DW1000Ng::setNetworkId(10);
 
   DW1000Ng::setAntennaDelay(16436);
