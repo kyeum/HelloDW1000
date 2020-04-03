@@ -94,7 +94,7 @@ device_configuration_t DEFAULT_CONFIG = {
     true,
     false,
     SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_5,
+    Channel::CHANNEL_1,
     DataRate::RATE_850KBPS,
     PulseFrequency::FREQ_16MHZ,
     PreambleLength::LEN_256,
@@ -122,7 +122,7 @@ void setup() {
 
     DW1000Ng::setNetworkId(10);
     
-    DW1000Ng::setAntennaDelay(16359);
+    DW1000Ng::setAntennaDelay(16381);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed

@@ -56,6 +56,7 @@
 #include <DW1000Ng.hpp>
 #include <DW1000NgUtils.hpp>
 #include <DW1000NgRanging.hpp>
+#include <math.h>
 
 // connection pins
 const uint8_t PIN_RST = 9; // reset pin
@@ -69,12 +70,6 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE 2
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
-
-#define EXPECTED_RANGE 1 // Recommended value for default values, refer to chapter 8.3.1 of DW1000 User manual 7.94 
-#define EXPECTED_RANGE_EPSILON 0.05
-#define ACCURACY_THRESHOLD 5
-#define ANTENNA_DELAY_STEPS 1
-
 // message flow state
 volatile byte expectedMsgId = POLL;
 // message sent/received state
@@ -82,11 +77,6 @@ volatile boolean sentAck = false;
 volatile boolean receivedAck = false;
 // protocol error state
 boolean protocolFailed = false;
-
-// Antenna calibration variables
-int accuracyCounter = 0;
-uint16_t antenna_delay = 16359;
-
 // timestamps to remember
 uint64_t timePollSent;
 uint64_t timePollReceived;
@@ -110,6 +100,13 @@ uint16_t successRangingCount = 0;
 uint32_t rangingCountPeriod = 0;
 float samplingRate = 0;
 
+//user defined data
+uint8_t uwbdata[4] = {1,2,3,4};
+uint32_t tmr_1ms = 0;
+
+
+
+
 device_configuration_t DEFAULT_CONFIG = {
     false,
     true,
@@ -117,7 +114,7 @@ device_configuration_t DEFAULT_CONFIG = {
     true,
     false,
     SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_1,
+    Channel::CHANNEL_5,
     DataRate::RATE_850KBPS,
     PulseFrequency::FREQ_16MHZ,
     PreambleLength::LEN_256,
@@ -132,21 +129,48 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
     true
 };
 
+//user edit -> buffer set up
+
+bool data_received = false;
+/* 
+
+*/
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
+    // Debug set timer 
+
+      /*  
+   cli();//stop interrupts
+  
+  //set timer0 interrupt at 2kHz
+    TCCR0A = 0;// set entire TCCR2A register to 0
+    TCCR0B = 0;// same for TCCR2B
+    TCNT0  = 0;//initialize counter value to 0
+    // set compare match register for 2khz increments
+    OCR0A = 124;// = (16*10^6) / (2000*64) - 1 (must be <256)
+    // turn on CTC mode
+    TCCR0A |= (1 << WGM01);
+    // Set CS01 and CS00 bits for 64 prescaler
+    TCCR0B |= (1 << CS01) | (1 << CS00);   
+    // enable timer compare interrupt
+    TIMSK0 |= (1 << OCIE0A);
+    sei();//allow interrupts
+
+
+  */
     delay(1000);
-    Serial.println(F("### DW1000Ng-arduino-ranging-anchor ###"));
+    Serial.println(F("Anchor"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println(F("DW1000Ng initialized ..."));
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
-	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
+  	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
-    DW1000Ng::setDeviceAddress(1);
+    DW1000Ng::setDeviceAddress(1); // device set up for each data set : send data to the rx buff.
 	
-    DW1000Ng::setAntennaDelay(antenna_delay);
+    DW1000Ng::setAntennaDelay(16359);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
@@ -168,7 +192,10 @@ void setup() {
     noteActivity();
     // for first time ranging frequency computation
     rangingCountPeriod = millis();
+
+
 }
+
 
 void noteActivity() {
     // update activity timestamp, so that we do not reach "resetPeriod"
@@ -219,7 +246,10 @@ void receiver() {
 }
 
 void loop() {
+  
+  //  Serial.write(txbuf,sizeof(txbuf));    
     int32_t curMillis = millis();
+
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (curMillis - lastActivity > resetPeriod) {
@@ -255,6 +285,7 @@ void loop() {
             noteActivity();
         }
         else if (msgId == RANGE) {
+            //data_received = true;
             timeRangeReceived = DW1000Ng::getReceiveTimestamp();
             expectedMsgId = POLL;
             if (!protocolFailed) {
@@ -268,32 +299,24 @@ void loop() {
                                                             timePollAckReceived, 
                                                             timeRangeSent, 
                                                             timeRangeReceived);
+                /* Apply simple bias correction */
+                distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
+               
+                short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex
                 
-                distance = DW1000NgRanging::correctRange(distance);
+                short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산 
+                byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
+
+                uwbdata[0] = (dist >> 8) & 0xFF; 
+                uwbdata[1] = dist & 0xFF;
+                uwbdata[2] = (power >> 8) & 0xFF; 
+                uwbdata[3] = power & 0xFF;
+                Serial.write(txbuf,sizeof(txbuf));    
                 
-                String rangeString = "Range: "; rangeString += distance; rangeString += " m";
-                rangeString += "\t RX power: "; rangeString += DW1000Ng::getReceivePower(); rangeString += " dBm";
-                rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
-                Serial.println(rangeString);
+               // String rangeString = "Range: "; rangeString += distance;
+               // Serial.println(rangeString);
 
-                // Antenna delay script
-                if(distance >= (EXPECTED_RANGE - EXPECTED_RANGE_EPSILON) && distance <= (EXPECTED_RANGE + EXPECTED_RANGE_EPSILON)) {
-                    accuracyCounter++;
-                } else {
-                    accuracyCounter = 0;
-                    antenna_delay += (distance > EXPECTED_RANGE) ? ANTENNA_DELAY_STEPS : -ANTENNA_DELAY_STEPS;
-                    DW1000Ng::setAntennaDelay(antenna_delay);
-                }
-
-                if(accuracyCounter == ACCURACY_THRESHOLD) {
-                    Serial.print("Found Antenna Delay value (Divide by two if one antenna is set to 0): ");
-                    Serial.println(antenna_delay);
-                    delay(10000);
-                }
-                //Serial.print("FP power is [dBm]: "); Serial.print(DW1000Ng::getFirstPathPower());
-                //Serial.print("RX power is [dBm]: "); Serial.println(DW1000Ng::getReceivePower());
-                //Serial.print("Receive quality: "); Serial.println(DW1000Ng::getReceiveQuality());
-                // update sampling rate (each second)
+              // update sampling rate (each second)
                 transmitRangeReport(distance * DISTANCE_OF_RADIO_INV);
                 successRangingCount++;
                 if (curMillis - rangingCountPeriod > 1000) {
@@ -301,6 +324,7 @@ void loop() {
                     rangingCountPeriod = curMillis;
                     successRangingCount = 0;
                 }
+              
             }
             else {
                 transmitRangeFailed();
