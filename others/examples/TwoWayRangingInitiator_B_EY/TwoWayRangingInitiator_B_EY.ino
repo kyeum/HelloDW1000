@@ -83,7 +83,7 @@ uint64_t timeRangeSent;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 250;
+uint32_t resetPeriod = 50;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 
@@ -94,11 +94,11 @@ device_configuration_t DEFAULT_CONFIG = {
     true,
     false,
     SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_5,
+    Channel::CHANNEL_1,
     DataRate::RATE_850KBPS,
     PulseFrequency::FREQ_16MHZ,
     PreambleLength::LEN_256,
-    PreambleCode::CODE_3
+    PreambleCode::CODE_2
 };
 
 interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
@@ -123,7 +123,7 @@ void setup() {
     DW1000Ng::setNetworkId(10);
     DW1000Ng::setDeviceAddress(3);
 
-    DW1000Ng::setAntennaDelay(16436);
+    DW1000Ng::setAntennaDelay(16530);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed

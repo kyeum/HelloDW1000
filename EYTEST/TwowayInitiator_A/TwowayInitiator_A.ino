@@ -83,7 +83,7 @@ uint64_t timeRangeSent;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 50;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 
@@ -122,7 +122,7 @@ void setup() {
 
     DW1000Ng::setNetworkId(10);
     
-    DW1000Ng::setAntennaDelay(16359);
+    DW1000Ng::setAntennaDelay(16530);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed

@@ -64,11 +64,11 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 4
-#define POLL_ACK 5
-#define RANGE 6
-#define RANGE_REPORT 7
-#define RANGE_FAILED 254
+#define POLL 0
+#define POLL_ACK 1
+#define RANGE 2
+#define RANGE_REPORT 3
+#define RANGE_FAILED 255
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
 // message sent/received state
@@ -83,7 +83,7 @@ uint64_t timeRangeSent;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 50;
+uint32_t resetPeriod = 100;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 
@@ -94,11 +94,11 @@ device_configuration_t DEFAULT_CONFIG = {
     true,
     false,
     SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_1,
+    Channel::CHANNEL_5,
     DataRate::RATE_850KBPS,
     PulseFrequency::FREQ_16MHZ,
     PreambleLength::LEN_256,
-    PreambleCode::CODE_2
+    PreambleCode::CODE_3
 };
 
 interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
@@ -122,7 +122,7 @@ void setup() {
 
     DW1000Ng::setNetworkId(10);
     
-    DW1000Ng::setAntennaDelay(16530);
+    DW1000Ng::setAntennaDelay(0);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed

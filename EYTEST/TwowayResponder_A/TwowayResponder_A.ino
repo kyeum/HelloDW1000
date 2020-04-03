@@ -92,7 +92,7 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 50;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 // ranging counter (per second)
@@ -170,7 +170,7 @@ void setup() {
 
     DW1000Ng::setDeviceAddress(1); // device set up for each data set : send data to the rx buff.
 	
-    DW1000Ng::setAntennaDelay(16359);
+    DW1000Ng::setAntennaDelay(16530);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
