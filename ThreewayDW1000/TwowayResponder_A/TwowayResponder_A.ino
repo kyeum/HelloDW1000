@@ -65,13 +65,25 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 0
-#define POLL_ACK 1
-#define RANGE 2
-#define RANGE_REPORT 3
-#define RANGE_FAILED 255
+char POLL = 0;
+char POLL_ACK = 1;
+char RANGE =  2;
+char RANGE_REPORT= 3;
+char RANGE_FAILED= 255;
+#define SELECT_POLL_A 100
+#define SELECT_POLL_B 101
+
+#define UWB_CNT 2
+
+char uwb_select = 1;
+char uwb_status = 0;
+
+//enum POLLSET {POLL POLL_ACK RANGE RANGE_REPORT RANGE_FAILED}
+
 // message flow state
 volatile byte expectedMsgId = POLL;
+volatile byte cur_uwb = SELECT_POLL_A;
+
 // message sent/received state
 volatile boolean sentAck = false;
 volatile boolean receivedAck = false;
@@ -88,7 +100,8 @@ uint64_t timeRangeReceived;
 uint64_t timeComputedRange;
 // last computed range/time
 // data buffer
-#define LEN_DATA 16
+#define LEN_DATA 17
+
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
@@ -104,9 +117,6 @@ float samplingRate = 0;
 uint8_t uwbdata[4] = {1,2,3,4};
 uint32_t tmr_1ms = 0;
 
-
-
-
 device_configuration_t DEFAULT_CONFIG = {
     false,
     true,
@@ -116,7 +126,7 @@ device_configuration_t DEFAULT_CONFIG = {
     SFDMode::STANDARD_SFD,
     Channel::CHANNEL_5,
     DataRate::RATE_850KBPS,
-    PulseFrequency::FREQ_16MHZ,
+    PulseFrequency::FREQ_64MHZ,
     PreambleLength::LEN_256,
     PreambleCode::CODE_3
 };
@@ -130,8 +140,8 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 };
 
 //user edit -> buffer set up
-
 bool data_received = false;
+
 /* 
 
 */
@@ -139,26 +149,6 @@ void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
     // Debug set timer 
-
-      /*  
-   cli();//stop interrupts
-  
-  //set timer0 interrupt at 2kHz
-    TCCR0A = 0;// set entire TCCR2A register to 0
-    TCCR0B = 0;// same for TCCR2B
-    TCNT0  = 0;//initialize counter value to 0
-    // set compare match register for 2khz increments
-    OCR0A = 124;// = (16*10^6) / (2000*64) - 1 (must be <256)
-    // turn on CTC mode
-    TCCR0A |= (1 << WGM01);
-    // Set CS01 and CS00 bits for 64 prescaler
-    TCCR0B |= (1 << CS01) | (1 << CS00);   
-    // enable timer compare interrupt
-    TIMSK0 |= (1 << OCIE0A);
-    sei();//allow interrupts
-
-
-  */
     delay(1000);
     Serial.println(F("Anchor"));
     // initialize the driver
@@ -187,9 +177,7 @@ void setup() {
     DW1000Ng::attachSentHandler(handleSent);
     DW1000Ng::attachReceivedHandler(handleReceived);
     // anchor starts in receiving mode, awaiting a ranging poll message
-   
-    receiver();
-    noteActivity();
+    //receiver();
     // for first time ranging frequency computation
     rangingCountPeriod = millis();
 
@@ -219,22 +207,69 @@ void handleReceived() {
     receivedAck = true;
 }
 
-void transmitPollAck() {
-    data[0] = POLL_ACK;
+void transmitPoll_Select(int select_poll) {
+    int set_uwb = 0;
+    if(select_poll == 1) {
+      set_uwb = SELECT_POLL_A;
+      cur_uwb = SELECT_POLL_A;
+    }
+    else if(select_poll == 2) {
+      set_uwb = SELECT_POLL_B;
+      cur_uwb = SELECT_POLL_B;
+    }
+
+    data[LEN_DATA-1] = set_uwb;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
 
-void transmitRangeReport(float curRange) {
+void transmitPollAck(int select_poll) {
+    int set_uwb = 0;
+    if(select_poll == 1) {
+      set_uwb = SELECT_POLL_A;
+      cur_uwb = SELECT_POLL_A;
+    }
+    else if(select_poll == 2) {
+      set_uwb = SELECT_POLL_B;
+      cur_uwb = SELECT_POLL_B;
+    }
+    data[0] = POLL_ACK;
+    data[LEN_DATA-1] = set_uwb;
+
+    DW1000Ng::setTransmitData(data, LEN_DATA);
+    DW1000Ng::startTransmit();
+}
+
+void transmitRangeReport(float curRange, int select_poll) {
+    int set_uwb = 0;
+    if(select_poll == 1) {
+      set_uwb = SELECT_POLL_A;
+      cur_uwb = SELECT_POLL_A;
+    }
+    else if(select_poll == 2) {
+      set_uwb = SELECT_POLL_B;
+      cur_uwb = SELECT_POLL_B;
+    }
     data[0] = RANGE_REPORT;
+    data[LEN_DATA-1] = set_uwb;
     // write final ranging result
     memcpy(data + 1, &curRange, 4);
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
 
-void transmitRangeFailed() {
+void transmitRangeFailed(int select_poll) {
+      int set_uwb = 0;
+    if(select_poll == 1) {
+      set_uwb = SELECT_POLL_A;
+      cur_uwb = SELECT_POLL_A;
+    }
+    else if(select_poll == 2) {
+      set_uwb = SELECT_POLL_B;
+      cur_uwb = SELECT_POLL_B;
+    }
     data[0] = RANGE_FAILED;
+    data[LEN_DATA-1] = set_uwb;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
@@ -246,9 +281,27 @@ void receiver() {
 }
 
 void loop() {
-  
-  //  Serial.write(txbuf,sizeof(txbuf));    
+    // select mode
     int32_t curMillis = millis();
+      if(uwb_status == 0){
+          uwb_status = 1;
+          if(uwb_select == 1){
+          POLL = 0;
+          POLL_ACK = 1;
+          RANGE =  2;
+          RANGE_REPORT= 3;
+          RANGE_FAILED= 255;
+          }
+          else if(uwb_select == 2)
+          {
+          POLL = 4;
+          POLL_ACK = 5;
+          RANGE =  6;
+          RANGE_REPORT= 7;
+          RANGE_FAILED= 254;
+          }
+          transmitPoll_Select(uwb_select); // 1 = A, 2 = B
+      }
 
     if (!sentAck && !receivedAck) {
         // check if inactive
@@ -281,7 +334,7 @@ void loop() {
             protocolFailed = false;
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             expectedMsgId = RANGE;
-            transmitPollAck();
+            transmitPollAck(uwb_select);
             noteActivity();
         }
         else if (msgId == RANGE) {
@@ -311,23 +364,31 @@ void loop() {
                 uwbdata[1] = dist & 0xFF;
                 uwbdata[2] = (power >> 8) & 0xFF; 
                 uwbdata[3] = power & 0xFF;
-                Serial.write(txbuf,sizeof(txbuf));    
-                
-               // String rangeString = "Range: "; rangeString += distance;
-               // Serial.println(rangeString);
+                //Serial.write(txbuf,sizeof(txbuf));    
+
+                if(cur_uwb == SELECT_POLL_A){
+                String rangeString = "RangeA: "; rangeString += distance;
+                Serial.println(rangeString);
+                }
+                else if(cur_uwb == SELECT_POLL_B){
+                String rangeString = "RangeB: "; rangeString += distance;
+                Serial.println(rangeString);
+                }
 
               // update sampling rate (each second)
-                transmitRangeReport(distance * DISTANCE_OF_RADIO_INV);
+                transmitRangeReport(distance * DISTANCE_OF_RADIO_INV,uwb_select);
                 successRangingCount++;
                 if (curMillis - rangingCountPeriod > 1000) {
                     samplingRate = (1000.0f * successRangingCount) / (curMillis - rangingCountPeriod);
                     rangingCountPeriod = curMillis;
                     successRangingCount = 0;
                 }
-              
+               // if(uwb_select == 1) uwb_select = 2;
+               // else if (uwb_select == 2) uwb_select = 1;
+                uwb_status = 0;
             }
             else {
-                transmitRangeFailed();
+                transmitRangeFailed(uwb_select);
             }
 
             noteActivity();
