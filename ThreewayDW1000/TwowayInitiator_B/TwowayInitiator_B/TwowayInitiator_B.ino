@@ -69,7 +69,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE 6
 #define RANGE_REPORT 7
 #define RANGE_FAILED 254
-#define SELECT_POLL_B 101
+#define SELECT_POLL 101
 
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
@@ -85,9 +85,9 @@ uint64_t timeRangeSent;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 10;
 // reply times (same on both sides for symm. ranging)
-uint16_t replyDelayTimeUS = 3000;
+uint16_t replyDelayTimeUS = 1000;
 
 device_configuration_t DEFAULT_CONFIG = {
     false,
@@ -98,7 +98,7 @@ device_configuration_t DEFAULT_CONFIG = {
     SFDMode::STANDARD_SFD,
     Channel::CHANNEL_5,
     DataRate::RATE_850KBPS,
-    PulseFrequency::FREQ_16MHZ,
+    PulseFrequency::FREQ_64MHZ,
     PreambleLength::LEN_256,
     PreambleCode::CODE_3
 };
@@ -114,7 +114,7 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
-    Serial.println(F("###Tag ###"));
+    Serial.println(F("###Tag B ###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println("DW1000Ng initialized ...");
@@ -222,11 +222,10 @@ void loop() {
         // get message and parse
         // get data message for uwb_select mode 
         DW1000Ng::getReceivedData(data, LEN_DATA);
-        if(data[LEN_DATA-1] != SELECT_POLL_B){
-        DW1000Ng::startReceive();
-        return;
+        if(data[LEN_DATA-1] != SELECT_POLL){
+          DW1000Ng::startReceive();
+          return;
         }
-          
         byte msgId = data[0];
         if (msgId != expectedMsgId) {
             expectedMsgId = POLL_ACK;
@@ -244,11 +243,11 @@ void loop() {
             expectedMsgId = POLL_ACK;
             float curRange;
             memcpy(&curRange, data + 1, 4);
-            transmitPoll();
+            //transmitPoll();
             noteActivity();
         } else if (msgId == RANGE_FAILED) {
             expectedMsgId = POLL_ACK;
-            transmitPoll();
+            //transmitPoll();
             noteActivity();
         }
     }

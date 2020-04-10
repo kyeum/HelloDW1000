@@ -75,8 +75,9 @@ char RANGE_FAILED= 255;
 
 #define UWB_CNT 2
 
-char uwb_select = 1;
+char uwb_select = 2;
 char uwb_status = 0;
+double range_dist = 0;
 
 //enum POLLSET {POLL POLL_ACK RANGE RANGE_REPORT RANGE_FAILED}
 
@@ -105,9 +106,9 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 10;
 // reply times (same on both sides for symm. ranging)
-uint16_t replyDelayTimeUS = 3000;
+uint16_t replyDelayTimeUS = 1000;
 // ranging counter (per second)
 uint16_t successRangingCount = 0;
 uint32_t rangingCountPeriod = 0;
@@ -150,10 +151,10 @@ void setup() {
     Serial.begin(115200);
     // Debug set timer 
     delay(1000);
-    Serial.println(F("Anchor"));
+    Serial.println(F("###Anchor###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
-    Serial.println(F("DW1000Ng initialized ..."));
+    //Serial.println(F("DW1000Ng initialized ..."));
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
   	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
@@ -162,7 +163,7 @@ void setup() {
 	
     DW1000Ng::setAntennaDelay(16359);
     
-    Serial.println(F("Committed configuration ..."));
+    //Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
     char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
@@ -283,7 +284,8 @@ void receiver() {
 void loop() {
     // select mode
     int32_t curMillis = millis();
-      if(uwb_status == 0){
+
+      if(uwb_status == 0){        
           uwb_status = 1;
           if(uwb_select == 1){
           POLL = 0;
@@ -323,7 +325,24 @@ void loop() {
     if (receivedAck) {
         receivedAck = false;
         // get message and parse
+
         DW1000Ng::getReceivedData(data, LEN_DATA);
+   /*
+        if(uwb_select == 1){
+          if(data[LEN_DATA-1] != SELECT_POLL_A){
+            DW1000Ng::startReceive();
+            noteActivity();
+            return;
+          } 
+        }
+        else if(uwb_select == 2){
+          if(data[LEN_DATA-1] != SELECT_POLL_B){
+            DW1000Ng::startReceive();
+            noteActivity();
+            return;
+          } 
+        }
+  */
         byte msgId = data[0];
         if (msgId != expectedMsgId) {
             // unexpected message, start over again (except if already POLL)
@@ -339,6 +358,7 @@ void loop() {
         }
         else if (msgId == RANGE) {
             //data_received = true;
+
             timeRangeReceived = DW1000Ng::getReceiveTimestamp();
             expectedMsgId = POLL;
             if (!protocolFailed) {
@@ -354,7 +374,7 @@ void loop() {
                                                             timeRangeReceived);
                 /* Apply simple bias correction */
                 distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
-               
+                range_dist = distance;
                 short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex
                 
                 short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산 
@@ -366,15 +386,6 @@ void loop() {
                 uwbdata[3] = power & 0xFF;
                 //Serial.write(txbuf,sizeof(txbuf));    
 
-                if(cur_uwb == SELECT_POLL_A){
-                String rangeString = "RangeA: "; rangeString += distance;
-                Serial.println(rangeString);
-                }
-                else if(cur_uwb == SELECT_POLL_B){
-                String rangeString = "RangeB: "; rangeString += distance;
-                Serial.println(rangeString);
-                }
-
               // update sampling rate (each second)
                 transmitRangeReport(distance * DISTANCE_OF_RADIO_INV,uwb_select);
                 successRangingCount++;
@@ -382,16 +393,33 @@ void loop() {
                     samplingRate = (1000.0f * successRangingCount) / (curMillis - rangingCountPeriod);
                     rangingCountPeriod = curMillis;
                     successRangingCount = 0;
-                }
-               // if(uwb_select == 1) uwb_select = 2;
-               // else if (uwb_select == 2) uwb_select = 1;
-                uwb_status = 0;
+                }           
+
             }
             else {
+              
                 transmitRangeFailed(uwb_select);
             }
-
-            noteActivity();
-        }
+                if(uwb_select == 1) uwb_select = 2;
+                else if (uwb_select == 2) uwb_select = 1;
+                uwb_status = 0;
+                noteActivity();
+            }
+                if(uwb_status == 0){
+                  double dist_uwb_a = 0;
+                  double dist_uwb_b = 0;
+                  if(cur_uwb == SELECT_POLL_A){
+                  dist_uwb_a= range_dist;
+                  }
+                  else if(cur_uwb == SELECT_POLL_B){
+                  dist_uwb_b = range_dist;
+                  }
+                  String rangeString = "RangeA: "; 
+                  String rangeStringB = "RangeB: "; 
+                  rangeString += dist_uwb_a;
+                  rangeString += rangeStringB;
+                  rangeString += dist_uwb_b;
+                  Serial.println(rangeString);
+                }
     }
 }

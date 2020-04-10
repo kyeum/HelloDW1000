@@ -69,7 +69,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE 2
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
-#define SELECT_POLL_A 100
+#define SELECT_POLL 100
 
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
@@ -85,9 +85,9 @@ uint64_t timeRangeSent;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 10;
 // reply times (same on both sides for symm. ranging)
-uint16_t replyDelayTimeUS = 3000;
+uint16_t replyDelayTimeUS = 1000;
 
 device_configuration_t DEFAULT_CONFIG = {
     false,
@@ -222,11 +222,8 @@ void loop() {
         // get message and parse
         // get data message for uwb_select mode 
         DW1000Ng::getReceivedData(data, LEN_DATA);
-        Serial.write(data,sizeof(data));
 
-
-        
-        if(data[LEN_DATA-1] != SELECT_POLL_A){
+        if(data[LEN_DATA-1] != SELECT_POLL){
           DW1000Ng::startReceive();
           return;
         }
@@ -251,7 +248,7 @@ void loop() {
             noteActivity();
         } else if (msgId == RANGE_FAILED) {
             expectedMsgId = POLL_ACK;
-            transmitPoll();
+            //transmitPoll();
             noteActivity();
         }
     }
