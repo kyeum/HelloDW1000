@@ -172,18 +172,20 @@ void handleReceived() {
 
 void transmitPoll() {
     data[0] = POLL;
+    data[SELECT_POLL-1] = SELECT_POLL;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
 
 void transmitRange() {
     data[0] = RANGE;
+    data[SELECT_POLL-1] = SELECT_POLL;
 
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
 
-	 timeRangeSent = DW1000Ng::getSystemTimestamp();
-	 timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
+	  timeRangeSent = DW1000Ng::getSystemTimestamp();
+	  timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
     DW1000NgUtils::writeValueToBytes(futureTimeBytes, timeRangeSent, LENGTH_TIMESTAMP);
     DW1000Ng::setDelayedTRX(futureTimeBytes);
     timeRangeSent += DW1000Ng::getTxAntennaDelay();
@@ -244,11 +246,11 @@ void loop() {
             expectedMsgId = POLL_ACK;
             float curRange;
             memcpy(&curRange, data + 1, 4);
-            //transmitPoll();
+            //transmitPoll(); // reset by new data!
             noteActivity();
         } else if (msgId == RANGE_FAILED) {
             expectedMsgId = POLL_ACK;
-            //transmitPoll();
+            transmitPoll(); // if error -> do again!
             noteActivity();
         }
     }

@@ -327,7 +327,7 @@ void loop() {
         // get message and parse
 
         DW1000Ng::getReceivedData(data, LEN_DATA);
-   /*
+  
         if(uwb_select == 1){
           if(data[LEN_DATA-1] != SELECT_POLL_A){
             DW1000Ng::startReceive();
@@ -342,7 +342,7 @@ void loop() {
             return;
           } 
         }
-  */
+  
         byte msgId = data[0];
         if (msgId != expectedMsgId) {
             // unexpected message, start over again (except if already POLL)

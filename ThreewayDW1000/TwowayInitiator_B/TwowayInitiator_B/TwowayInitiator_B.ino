@@ -172,12 +172,15 @@ void handleReceived() {
 
 void transmitPoll() {
     data[0] = POLL;
+    data[SELECT_POLL-1] = SELECT_POLL;
+
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
 
 void transmitRange() {
     data[0] = RANGE;
+    data[SELECT_POLL-1] = SELECT_POLL;
 
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
@@ -247,7 +250,7 @@ void loop() {
             noteActivity();
         } else if (msgId == RANGE_FAILED) {
             expectedMsgId = POLL_ACK;
-            //transmitPoll();
+            transmitPoll(); // if failed - > send again
             noteActivity();
         }
     }
