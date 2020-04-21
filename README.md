@@ -1,7 +1,11 @@
 # HelloDW1000
-DW1000 guide with pyboard
+This project gives positive way to get distance data with the help of previous DW1000 - Arduino mini developer(thotro - NG)
 
-![Maintenance](https://img.shields.io/maintenance/no/2019.svg)
+With the above libraries, my project invoke positive ways to use DW1000 using arduino nano board for distance range.
+
+This project's final target is to pursue two to one and two to two communication module using uwb sensor module.
+
+![Maintenance](https://img.shields.io/maintenance/yes/2020.svg)
 ![Required know-how](https://img.shields.io/badge/Required%20know--how-professional-red.svg)
 ![Additional hardware required](https://img.shields.io/badge/Additional%20hardware-required-orange.svg)
 ![c++11](https://img.shields.io/badge/C%2B%2B-11-brightgreen.svg)
@@ -19,11 +23,12 @@ Project state
 
 This library is currently (2019) **not actively maintained** by teh owner *thotro*.
 
+This library is currently (2020) **actively maintained** by owner *kyeum*.
+
 Anyway you can create pull requests if you found a bug or developed a new feature. They maybe help others.
 
 **TODOLists:**
-* Design architecture and library for other user's with DWM1000 & pyboard with the help of other's arduino libraries
-* First step will be 
+* Design architecture and library for other user's with DWM1000 & arduino pro  
 
 **General notice:**
 * Datasheet and application notices are available at https://www.decawave.com/ (require free registration).
