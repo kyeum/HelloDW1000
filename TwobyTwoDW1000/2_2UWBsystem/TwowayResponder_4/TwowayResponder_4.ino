@@ -280,20 +280,21 @@ void loop() {
     // select mode
     int32_t curMillis = millis();
     if(mode_test){
-        for(int i =0; i<2; i++){
+        for(int i =0; i<1; i++){
         transmitPoll();
         Serial.println("sendpoll");
         mode_test = false;
+        receiver();
       }
    }
     else{
-  if (!sentAck && !receivedAck) {
+      if (!sentAck && !receivedAck) {
           // check if inactive
           if (curMillis - lastActivity > resetPeriod) {
               resetInactive();
           }
           return;
-  }
+        }
       
     // continue on any success confirmation
 //    if (sentAck) {
@@ -309,6 +310,7 @@ void loop() {
         receivedAck = false;
         // get message and parse
         DW1000Ng::getReceivedData(data, LEN_DATA);
+        Serial.println("received range");
   
 //        if(uwb_select == 1){
 //          if(data[LEN_DATA-1] != SELECT_POLL_A){
@@ -332,6 +334,7 @@ void loop() {
         }
         else if (msgId == RANGE) {
             //data_received = true;
+            Serial.println("received range");
 
             timeRangeReceived = DW1000Ng::getReceiveTimestamp();
             expectedMsgId = POLL;
@@ -379,25 +382,6 @@ void loop() {
                 uwb_status = 0;
                 noteActivity();
             }
-                if(uwb_status == 0){
-                  double dist_uwb_a = 0;
-                  double dist_uwb_b = 0;
-                  if(cur_uwb == SELECT_POLL_A){
-                  dist_uwb_a= range_dist;
-                  }
-                  else if(cur_uwb == SELECT_POLL_B){
-                  dist_uwb_b = range_dist;
-                  }
-                  String rangeString = "RangeA: "; 
-                  String rangeStringB = "RangeB: "; 
-                  rangeString += dist_uwb_a;
-                  rangeString += rangeStringB;
-                  rangeString += dist_uwb_b;
-                  Serial.println(rangeString);
-                }
+      }  
     }
-      
-    }
-    
-    
 }

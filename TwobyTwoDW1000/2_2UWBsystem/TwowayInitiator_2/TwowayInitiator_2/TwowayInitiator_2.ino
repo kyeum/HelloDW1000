@@ -240,6 +240,11 @@ void loop() {
             timePollSent = DW1000Ng::getTransmitTimestamp();
             timePollAckReceived = DW1000Ng::getReceiveTimestamp();
             //expectedMsgId = RANGE_REPORT;
+            delay(1000);
+
+            data[0] = POLL_ACK;
+            DW1000Ng::setTransmitData(data, LEN_DATA);
+            DW1000Ng::startTransmit();
             //transmitRange();
             noteActivity();
         } else if (msgId == RANGE_REPORT) {

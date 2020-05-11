@@ -204,15 +204,17 @@ void receiver() {
 }
 
 void loop() {
-    // wait for message before beginning// 
 
-    if (!sentAck && !receivedAck) {
-        // check if inactive
-        if (millis() - lastActivity > resetPeriod) {
-            //resetInactive();
-        }
-        return;
-    }
+
+    // wait for message before beginning// 
+//
+//    if (!sentAck && !receivedAck) {
+//        // check if inactive
+//        if (millis() - lastActivity > resetPeriod) {
+//            //resetInactive();
+//        }
+//        return;
+//    }
     // continue on any success confirmation
     if (sentAck) {
         sentAck = false;
@@ -240,7 +242,9 @@ void loop() {
             timePollSent = DW1000Ng::getTransmitTimestamp();
             //timePollAckReceived = DW1000Ng::getReceiveTimestamp();
             //expectedMsgId = RANGE_REPORT;
-            transmitRange();
+            data[0] = POLL_ACK;
+            DW1000Ng::setTransmitData(data, LEN_DATA);
+            DW1000Ng::startTransmit();
             noteActivity();
         } else if (msgId == RANGE_REPORT) {
             expectedMsgId = POLL_ACK;
