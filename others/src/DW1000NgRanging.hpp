@@ -48,6 +48,26 @@ namespace DW1000NgRanging {
                                         uint64_t timeRangeSent,
                                         uint64_t timeRangeReceived 
                                  );
+
+    //TODO Symmetric
+
+    /**
+    Removes bias from the target range
+    
+    returns the unbiased range
+    */
+    double correctRange(double range);
+}
+
+namespace DW1000EYRanging {
+    double computeRangeAsymmetric_2by2_EY(    
+                                        uint64_t timePollSent, 
+                                        uint64_t timePollReceived, 
+                                        uint64_t timePollAckSent, 
+                                        uint64_t timePollAckReceived,
+                                        uint64_t timeRangeSent,
+                                        uint64_t timeRangeReceived 
+                                 );
     //TODO Symmetric
 
     /**

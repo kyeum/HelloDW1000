@@ -84,5 +84,57 @@ namespace DW1000NgRanging {
 
         return result;
     }
+}
+
+ namespace DW1000EYRanging {
+
+    double computeRangeAsymmetric_2by2_EY(    
+                                    uint64_t timePollSent, 
+                                    uint64_t timePollReceived, 
+                                    uint64_t timePollAckSent, 
+                                    uint64_t timePollAckReceived,
+                                    uint64_t timeRangeSent,
+                                    uint64_t timeRangeReceived
+                                )
+    {
+        uint32_t timePollSent_32 = static_cast<uint32_t>(timePollSent);
+        uint32_t timePollReceived_32 = static_cast<uint32_t>(timePollReceived);
+        uint32_t timeRangeSent_32 = static_cast<uint32_t>(timeRangeSent);
+        uint32_t timeRangeReceived_32 = static_cast<uint32_t>(timeRangeReceived);
+        
+        double round1 = static_cast<double>(timeRangeReceived_32 - timePollSent_32);
+        double reply1 = static_cast<double>(timeRangeSent_32 - timePollReceived_32);
+
+        int64_t tof_uwb = static_cast<int64_t>(round1-reply1)/2;
+        double distance = tof_uwb * DISTANCE_OF_RADIO;
+
+        return distance;
+    }
+
+    double correctRange(double range) {
+        double result = 0;
+
+        Channel currentChannel = DW1000Ng::getChannel();
+        double rxPower = -(static_cast<double>(DW1000Ng::getReceivePower()));
+            
+        size_t index = DW1000Ng::getPulseFrequency() == PulseFrequency::FREQ_16MHZ ? 1 : 2;
+        if(currentChannel == Channel::CHANNEL_4 || currentChannel == Channel::CHANNEL_7)
+            index+=2;
+            
+        if (rxPower < BIAS_TABLE[0][0]) {
+            result = range += BIAS_TABLE[0][index]*0.001;
+        } else if (rxPower >= BIAS_TABLE[17][0]) {
+            result = range += BIAS_TABLE[17][index]*0.001;
+        } else {
+        for(auto i=0; i < 17; i++) {
+            if (rxPower >= BIAS_TABLE[i][0] && rxPower < BIAS_TABLE[i+1][0]){
+                     result = range += BIAS_TABLE[i][index]*0.001;
+                     break;
+                    }
+                }
+            }
+
+            return result;
+        }
 
 }

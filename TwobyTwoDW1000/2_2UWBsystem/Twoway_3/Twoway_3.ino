@@ -1,57 +1,9 @@
 /*
- * MIT License
- * 
- * Copyright (c) 2018 Michele Biondi, Andrea Salvatori
- * 
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- * 
- * The above copyright notice and this permission notice shall be included in all
- * copies or substantial portions of the Software.
- * 
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
-*/
-
-/*
- * Copyright (c) 2015 by Thomas Trojer <thomas@trojer.net>
- * Decawave DW1000 library for arduino.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- * @file RangingAnchor.ino
- * Use this to test two-way ranging functionality with two
- * DW1000Ng:: This is the anchor component's code which computes range after
- * exchanging some messages. Addressing and frame filtering is currently done
- * in a custom way, as no MAC features are implemented yet.
- *
- * Complements the "RangingTag" example sketch.
- *
- * @todo
- *  - weighted average of ranging results based on signal quality
- *  - use enum instead of define
- *  - move strings to flash (less RAM consumption)
+ RADL UWB system _ by EY
+ ver 2:2
+ <Initiator 3>
  */
-
+ 
 #include <SPI.h>
 #include <DW1000Ng.hpp>
 #include <DW1000NgUtils.hpp>
@@ -70,8 +22,6 @@ char POLL_ACK = 1;
 char RANGE =  2;
 char RANGE_REPORT= 3;
 char RANGE_FAILED= 255;
-#define SELECT_POLL_A 100
-#define SELECT_POLL_B 101
 
 #define UWB_CNT 2
 
@@ -210,14 +160,6 @@ void handleReceived() {
 
 void transmitPoll_Select(int select_poll) {
     int set_uwb = 0;
-    if(select_poll == 1) {
-      set_uwb = SELECT_POLL_A;
-      cur_uwb = SELECT_POLL_A;
-    }
-    else if(select_poll == 2) {
-      set_uwb = SELECT_POLL_B;
-      cur_uwb = SELECT_POLL_B;
-    }
 
     data[LEN_DATA-1] = set_uwb;
     DW1000Ng::setTransmitData(data, LEN_DATA);
@@ -226,14 +168,6 @@ void transmitPoll_Select(int select_poll) {
 
 void transmitPollAck(int select_poll) {
     int set_uwb = 0;
-    if(select_poll == 1) {
-      set_uwb = SELECT_POLL_A;
-      cur_uwb = SELECT_POLL_A;
-    }
-    else if(select_poll == 2) {
-      set_uwb = SELECT_POLL_B;
-      cur_uwb = SELECT_POLL_B;
-    }
     data[0] = POLL_ACK;
     data[LEN_DATA-1] = set_uwb;
 
@@ -243,14 +177,6 @@ void transmitPollAck(int select_poll) {
 
 void transmitRangeReport(float curRange, int select_poll) {
     int set_uwb = 0;
-    if(select_poll == 1) {
-      set_uwb = SELECT_POLL_A;
-      cur_uwb = SELECT_POLL_A;
-    }
-    else if(select_poll == 2) {
-      set_uwb = SELECT_POLL_B;
-      cur_uwb = SELECT_POLL_B;
-    }
     data[0] = RANGE_REPORT;
     data[LEN_DATA-1] = set_uwb;
     // write final ranging result
@@ -261,14 +187,6 @@ void transmitRangeReport(float curRange, int select_poll) {
 
 void transmitRangeFailed(int select_poll) {
       int set_uwb = 0;
-    if(select_poll == 1) {
-      set_uwb = SELECT_POLL_A;
-      cur_uwb = SELECT_POLL_A;
-    }
-    else if(select_poll == 2) {
-      set_uwb = SELECT_POLL_B;
-      cur_uwb = SELECT_POLL_B;
-    }
     data[0] = RANGE_FAILED;
     data[LEN_DATA-1] = set_uwb;
     DW1000Ng::setTransmitData(data, LEN_DATA);
@@ -284,26 +202,6 @@ void receiver() {
 void loop() {
     // select mode
     int32_t curMillis = millis();
-
-      if(uwb_status == 0){        
-          uwb_status = 1;
-          if(uwb_select == 1){
-          POLL = 0;
-          POLL_ACK = 1;
-          RANGE =  2;
-          RANGE_REPORT= 3;
-          RANGE_FAILED= 255;
-          }
-          else if(uwb_select == 2)
-          {
-          POLL = 4;
-          POLL_ACK = 5;
-          RANGE =  6;
-          RANGE_REPORT= 7;
-          RANGE_FAILED= 254;
-          }
-          transmitPoll_Select(uwb_select); // 1 = A, 2 = B
-      }
 
     if (!sentAck && !receivedAck) {
         // check if inactive

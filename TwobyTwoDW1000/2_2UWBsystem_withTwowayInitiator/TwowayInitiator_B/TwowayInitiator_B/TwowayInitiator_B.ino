@@ -64,12 +64,12 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 5
-#define POLL_ACK 1
-#define RANGE 2
-#define RANGE_REPORT 3
-#define RANGE_FAILED 255
-#define SELECT_POLL 100
+#define POLL 4
+#define POLL_ACK 5
+#define RANGE 6
+#define RANGE_REPORT 7
+#define RANGE_FAILED 254
+#define SELECT_POLL 101
 
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
@@ -114,7 +114,7 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
-    Serial.println(F("###Tag 1 ###"));
+    Serial.println(F("###Tag B ###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println("DW1000Ng initialized ...");
@@ -122,10 +122,11 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	  DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
 
-    DW1000Ng::setNetworkId(1);
+    DW1000Ng::setNetworkId(10);
     
     DW1000Ng::setAntennaDelay(16359);
     
+    Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
     char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
@@ -155,7 +156,7 @@ void resetInactive() {
     // tag sends POLL and listens for POLL_ACK
     expectedMsgId = POLL_ACK;
     DW1000Ng::forceTRxOff();
-    //transmitPoll();
+    transmitPoll();
     noteActivity();
 }
 
@@ -171,6 +172,8 @@ void handleReceived() {
 
 void transmitPoll() {
     data[0] = POLL;
+    data[SELECT_POLL-1] = SELECT_POLL;
+
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
@@ -182,8 +185,8 @@ void transmitRange() {
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
 
-	  timeRangeSent = DW1000Ng::getSystemTimestamp();
-	  timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
+	 timeRangeSent = DW1000Ng::getSystemTimestamp();
+	 timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
     DW1000NgUtils::writeValueToBytes(futureTimeBytes, timeRangeSent, LENGTH_TIMESTAMP);
     DW1000Ng::setDelayedTRX(futureTimeBytes);
     timeRangeSent += DW1000Ng::getTxAntennaDelay();
@@ -191,7 +194,6 @@ void transmitRange() {
     DW1000NgUtils::writeValueToBytes(data + 1, timePollSent, LENGTH_TIMESTAMP);
     DW1000NgUtils::writeValueToBytes(data + 6, timePollAckReceived, LENGTH_TIMESTAMP);
     DW1000NgUtils::writeValueToBytes(data + 11, timeRangeSent, LENGTH_TIMESTAMP);
-    data[16] = 255;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit(TransmitMode::DELAYED);
     //Serial.print("Expect RANGE to be sent @ "); Serial.println(timeRangeSent.getAsFloat());
@@ -204,17 +206,15 @@ void receiver() {
 }
 
 void loop() {
-
-
     // wait for message before beginning// 
-//
-//    if (!sentAck && !receivedAck) {
-//        // check if inactive
-//        if (millis() - lastActivity > resetPeriod) {
-//            //resetInactive();
-//        }
-//        return;
-//    }
+
+    if (!sentAck && !receivedAck) {
+        // check if inactive
+        if (millis() - lastActivity > resetPeriod) {
+            resetInactive();
+        }
+        return;
+    }
     // continue on any success confirmation
     if (sentAck) {
         sentAck = false;
@@ -225,38 +225,33 @@ void loop() {
         // get message and parse
         // get data message for uwb_select mode 
         DW1000Ng::getReceivedData(data, LEN_DATA);
-
-        //if(data[LEN_DATA-1] != SELECT_POLL){
-        //  DW1000Ng::startReceive();
-        //  return;
-        //}
+        if(data[LEN_DATA-1] != SELECT_POLL){
+          DW1000Ng::startReceive();
+          return;
+        }
         byte msgId = data[0];
-//        if (msgId != expectedMsgId) {
-//            expectedMsgId = POLL_ACK;
-//            transmitPoll();  
-//            noteActivity();
-//            return; // goto new loop//
-//        }
-        if (msgId == POLL) {
-            Serial.println("received poll;");
+        if (msgId != expectedMsgId) {
+            expectedMsgId = POLL_ACK;
+            transmitPoll();  
+            noteActivity();
+            return; // goto new loop//
+        }
+        if (msgId == POLL_ACK) {
             timePollSent = DW1000Ng::getTransmitTimestamp();
-            //timePollAckReceived = DW1000Ng::getReceiveTimestamp();
-            //expectedMsgId = RANGE_REPORT;
-            data[0] = POLL_ACK;
-            DW1000Ng::setTransmitData(data, LEN_DATA);
-            DW1000Ng::startTransmit();
+            timePollAckReceived = DW1000Ng::getReceiveTimestamp();
+            expectedMsgId = RANGE_REPORT;
+            transmitRange();
             noteActivity();
         } else if (msgId == RANGE_REPORT) {
             expectedMsgId = POLL_ACK;
             float curRange;
             memcpy(&curRange, data + 1, 4);
-            //transmitPoll(); // reset by new data!
+            //transmitPoll();
             noteActivity();
         } else if (msgId == RANGE_FAILED) {
             expectedMsgId = POLL_ACK;
-            //transmitPoll(); // if error -> do again!
+            transmitPoll(); // if failed - > send again
             noteActivity();
         }
-         receiver();
     }
 }
