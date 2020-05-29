@@ -30,7 +30,7 @@ char RANGE_From1 = 1;
 char RANGE_From2 = 2;
 char RANGE_REPORT = 254;
 char RANGE_FAILED = 255;
-char ITER = 200; // Iter received from UWB board (2) 
+char RESETPOLL = 200; // Iter received from UWB board (2) 
 // messages used in the ranging protocol
 double range_dist = 0;
 
@@ -223,7 +223,7 @@ void loop() {
           receivedAck = false;
           DW1000Ng::getReceivedData(data, LEN_DATA);
           byte msgId = data[0];
-          if(msgId == ITER){
+          if(msgId == RESETPOLL){ // RESETPOLL
             StartPoll();   
           }
           else if (msgId == RANGE_From1) {

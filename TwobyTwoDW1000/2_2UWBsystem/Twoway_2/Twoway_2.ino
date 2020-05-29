@@ -8,6 +8,7 @@
 #include <DW1000Ng.hpp>
 #include <DW1000NgUtils.hpp>
 #include <DW1000NgTime.hpp>
+#include <DW1000NgRanging.hpp>
 #include <DW1000NgConstants.hpp>
  
 // connection pins
@@ -22,7 +23,8 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE 1
 #define RANGE_REPORT 254
 #define RANGE_FAILED 255
-#define RANGE_From3 3
+#define RANGE_From3 11
+
 // message flow state
 volatile byte expectedMsgId = POLL;
 
@@ -70,7 +72,7 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
     false,
     true
 };
-//***user defined data
+//************************************************user defined data
 bool poll_received = false;
 bool poll_send = false;
 byte uwbdata[4] = {0xff, 0xff, 0xff, 0xff};
@@ -199,7 +201,7 @@ void loop() {
               double distance = DW1000EYRanging::computeRangeAsymmetric_2by2_EY(timePollSent,
                                                              timePollSent, 
                                                              timePollAckReceived, 
-                                                            timePollAckReceived, 
+                                                             timePollAckReceived, 
                                                              timeRangeSent, 
                                                              timeRangeReceived);
               /* Apply simple bias correction */
@@ -213,11 +215,11 @@ void loop() {
     else{
       if (receivedAck) {
           receivedAck = false;
-  
           DW1000Ng::getReceivedData(data, LEN_DATA);
           byte msgId = data[0];
           if (msgId != POLL) {
               DW1000Ng::startReceive();
+              noteActivity();
               return;
           }
           else if (msgId == POLL) {
@@ -225,8 +227,6 @@ void loop() {
               Serial.println("received poll;");
               timePollReceived = DW1000Ng::getReceiveTimestamp();
               transmitRange();
-              DW1000Ng::startReceive();
-              //transmitRange();
               noteActivity();
           }
         }
