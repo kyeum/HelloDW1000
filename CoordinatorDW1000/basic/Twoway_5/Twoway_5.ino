@@ -69,8 +69,6 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE 6
 #define RANGE_REPORT 7
 #define RANGE_FAILED 254
-#define SELECT_POLL 101
-
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
 // message sent/received state
@@ -81,13 +79,13 @@ uint64_t timePollSent;
 uint64_t timePollAckReceived;
 uint64_t timeRangeSent;
 // data buffer
-#define LEN_DATA 17
+#define LEN_DATA 16
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 10;
+uint32_t resetPeriod = 50;
 // reply times (same on both sides for symm. ranging)
-uint16_t replyDelayTimeUS = 1000;
+uint16_t replyDelayTimeUS = 3000;
 
 device_configuration_t DEFAULT_CONFIG = {
     false,
@@ -96,11 +94,11 @@ device_configuration_t DEFAULT_CONFIG = {
     true,
     false,
     SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_5,
+    Channel::CHANNEL_1,
     DataRate::RATE_850KBPS,
-    PulseFrequency::FREQ_64MHZ,
+    PulseFrequency::FREQ_16MHZ,
     PreambleLength::LEN_256,
-    PreambleCode::CODE_3
+    PreambleCode::CODE_2
 };
 
 interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
@@ -114,7 +112,7 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
-    Serial.println(F("###Tag B ###"));
+    Serial.println(F("###Tag ###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println("DW1000Ng initialized ...");
@@ -124,7 +122,7 @@ void setup() {
 
     DW1000Ng::setNetworkId(10);
     
-    DW1000Ng::setAntennaDelay(16359);
+    DW1000Ng::setAntennaDelay(16530);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
@@ -141,9 +139,7 @@ void setup() {
     DW1000Ng::attachSentHandler(handleSent);
     DW1000Ng::attachReceivedHandler(handleReceived);
     // anchor starts by transmitting a POLL message
-    //transmitPoll();
-    //noteActivity();
-    receiver();
+    transmitPoll();
     noteActivity();
 }
 
@@ -172,15 +168,12 @@ void handleReceived() {
 
 void transmitPoll() {
     data[0] = POLL;
-    data[SELECT_POLL-1] = SELECT_POLL;
-
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
 
 void transmitRange() {
     data[0] = RANGE;
-    data[SELECT_POLL-1] = SELECT_POLL;
 
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
@@ -199,15 +192,8 @@ void transmitRange() {
     //Serial.print("Expect RANGE to be sent @ "); Serial.println(timeRangeSent.getAsFloat());
 }
 
-void receiver() {
-    DW1000Ng::forceTRxOff();
-    // so we don't need to restart the receiver manually
-    DW1000Ng::startReceive();
-}
-
 void loop() {
-    // wait for message before beginning// 
-
+     // Serial.println(F("0xFF"));
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
@@ -223,18 +209,14 @@ void loop() {
     if (receivedAck) {
         receivedAck = false;
         // get message and parse
-        // get data message for uwb_select mode 
         DW1000Ng::getReceivedData(data, LEN_DATA);
-        if(data[LEN_DATA-1] != SELECT_POLL){
-          DW1000Ng::startReceive();
-          return;
-        }
         byte msgId = data[0];
         if (msgId != expectedMsgId) {
+            // unexpected message, start over again
+            //Serial.print("Received wrong message # "); Serial.println(msgId);
             expectedMsgId = POLL_ACK;
-            transmitPoll();  
-            noteActivity();
-            return; // goto new loop//
+            transmitPoll();
+            return;
         }
         if (msgId == POLL_ACK) {
             timePollSent = DW1000Ng::getTransmitTimestamp();
@@ -246,11 +228,11 @@ void loop() {
             expectedMsgId = POLL_ACK;
             float curRange;
             memcpy(&curRange, data + 1, 4);
-            //transmitPoll();
+            transmitPoll();
             noteActivity();
         } else if (msgId == RANGE_FAILED) {
             expectedMsgId = POLL_ACK;
-            transmitPoll(); // if failed - > send again
+            transmitPoll();
             noteActivity();
         }
     }
