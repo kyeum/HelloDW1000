@@ -160,7 +160,7 @@ void setup() {
 
   */
     delay(1000);
-    Serial.println(F("Anchor"));
+    Serial.println(F("###3DUWB_3###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println(F("DW1000Ng initialized ..."));
@@ -192,7 +192,6 @@ void setup() {
     noteActivity();
     // for first time ranging frequency computation
     rangingCountPeriod = millis();
-
 
 }
 

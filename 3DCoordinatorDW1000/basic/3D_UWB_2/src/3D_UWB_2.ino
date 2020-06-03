@@ -58,17 +58,18 @@
 #include <DW1000NgConstants.hpp>
 
 // connection pins
+//update for test
 const uint8_t PIN_RST = 9; // reset pin
 const uint8_t PIN_IRQ = 2; // irq pin
 const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 4
-#define POLL_ACK 5
-#define RANGE 6
-#define RANGE_REPORT 7
-#define RANGE_FAILED 254
+#define POLL 0
+#define POLL_ACK 1
+#define RANGE 2
+#define RANGE_REPORT 3
+#define RANGE_FAILED 255
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
 // message sent/received state
@@ -94,11 +95,11 @@ device_configuration_t DEFAULT_CONFIG = {
     true,
     false,
     SFDMode::STANDARD_SFD,
-    Channel::CHANNEL_1,
+    Channel::CHANNEL_5,
     DataRate::RATE_850KBPS,
     PulseFrequency::FREQ_16MHZ,
     PreambleLength::LEN_256,
-    PreambleCode::CODE_2
+    PreambleCode::CODE_3
 };
 
 interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
@@ -112,7 +113,7 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
-    Serial.println(F("###Tag ###"));
+    Serial.println(F("###3DUWB_2###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     Serial.println("DW1000Ng initialized ...");
