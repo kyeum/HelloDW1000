@@ -45,7 +45,7 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 50;
+uint32_t resetPeriod = 100;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 // ranging counter (per second)
@@ -124,7 +124,6 @@ void noteActivity() {
 void resetInactive() {
     // anchor listens for POLL
     expectedMsgId = POLL;
-    //receiver();
     DW1000Ng::forceTRxOff();
     transmitPoll();
     noteActivity();

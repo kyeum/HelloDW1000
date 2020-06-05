@@ -34,7 +34,7 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 50;
+uint32_t resetPeriod = 100;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 
@@ -106,8 +106,7 @@ void resetInactive() {
 }
 
 void receiver() {
-    delay(1000);
-    Serial.println(F("reset"));
+    Serial.println(F("receiver start"));
     DW1000Ng::forceTRxOff();
     // so we don't need to restart the receiver manually
     DW1000Ng::startReceive();
@@ -173,9 +172,19 @@ void loop() {
     
     if (receivedAck) {
         receivedAck = false;
-        timePollReceived = DW1000Ng::getTransmitTimestamp();
-        transmitRange_Basic();
-        
+        DW1000Ng::getReceivedData(data, LEN_DATA);
+        byte msgId = data[0];
+        if (msgId != POLL) {
+            DW1000Ng::startReceive();
+            noteActivity();
+            return; // goto new loop//
+        }
+        else if (msgId == POLL) {
+            Serial.println("received poll;");
+            timePollReceived = DW1000Ng::getReceiveTimestamp();
+            transmitRange_Basic();
+            noteActivity();
+        } 
     }    
 }
 
