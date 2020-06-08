@@ -11,11 +11,12 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 0
-#define POLL_ACK 1
-#define RANGE 2
-#define RANGE_REPORT 3
-#define RANGE_FAILED 255
+#define POLL 4
+#define POLL_ACK 5
+#define RANGE 6
+#define RANGE_REPORT 7
+#define RANGE_FAILED 254
+
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
 // message sent/received state
@@ -34,7 +35,7 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 50;
+uint32_t resetPeriod = 100;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 
@@ -106,8 +107,6 @@ void resetInactive() {
 }
 
 void receiver() {
-    delay(1000);
-    Serial.println(F("reset"));
     DW1000Ng::forceTRxOff();
     // so we don't need to restart the receiver manually
     DW1000Ng::startReceive();
@@ -163,25 +162,43 @@ void transmitRange_Basic() {
 
 void loop() {
     
-    if (!sentAck && !receivedAck) {
+    if (!sentAck&&!receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
             resetInactive();
+            Serial.println(F("0"));
+
         }
         return;
+    }
+    if (sentAck) {
+        sentAck = false;
+        byte msgId = data[0];
+        if (msgId == POLL_ACK) {
+            timePollAckSent = DW1000Ng::getTransmitTimestamp();
+            noteActivity();
+        }
+        DW1000Ng::startReceive();
     }
     
     if (receivedAck) {
         receivedAck = false;
-        timePollReceived = DW1000Ng::getTransmitTimestamp();
-        transmitRange_Basic();
-
+        DW1000Ng::getReceivedData(data, LEN_DATA);
+        byte msgId = data[0];
+        if (msgId != POLL) {
+            DW1000Ng::startReceive();
+            noteActivity();
+            return; // goto new loop//
+        }
+        else if (msgId == POLL) {
+            Serial.println("received poll;");
+            timePollReceived = DW1000Ng::getReceiveTimestamp();
+            transmitRange_Basic();
+            noteActivity();
+        } 
     }    
 }
 
-
-
-// system 20200604 - 2ways
 /*
 #include <SPI.h>
 #include <DW1000Ng.hpp>

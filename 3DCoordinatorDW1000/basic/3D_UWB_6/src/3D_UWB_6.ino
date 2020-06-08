@@ -21,6 +21,15 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
 
+#define POLL2 4
+#define POLL_ACK2 5
+#define RANGE2 6
+#define RANGE_REPORT2 7
+#define RANGE_FAILED2 254
+
+
+
+
 // message flow state
 volatile byte expectedMsgId = POLL;
 // message sent/received state
@@ -147,10 +156,8 @@ void transmitPollAck() {
 
 void transmitPoll() {
     data[0] = POLL;
-    Serial.print("Send");
-    DW1000Ng::setTransmitData(data, LEN_POLL);
+    DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
-    timePollSent = DW1000Ng::getTransmitTimestamp();
 }
 
 void transmitRangeReport(float curRange) {
@@ -182,20 +189,44 @@ void Send2PC(short dist, short power) {
                 Serial.write(txbuf,sizeof(txbuf));    
 }
 
+void checkFreq(int cur_millis){
+                  // update sampling rate (each second)
+    successRangingCount++;
+    if (cur_millis - rangingCountPeriod > 1000) {
+    samplingRate = (1000.0f * successRangingCount) / (cur_millis - rangingCountPeriod);
+    rangingCountPeriod = cur_millis;
+    successRangingCount = 0;
+    }
+}
+
 void loop() {
-    int32_t curMillis = millis();
-    
-    if (!sentAck && !receivedAck) {
+    int32_t curMillis = millis();      
+    if (!sentAck&&!receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
             resetInactive();
+            Serial.print("0");
         }
         return;
+    }
+    if (sentAck) {
+        sentAck = false;
+        byte msgId = data[0];
+        if (msgId == POLL_ACK) {
+            timePollAckSent = DW1000Ng::getTransmitTimestamp();
+            noteActivity();
+        }
+        DW1000Ng::startReceive();
     }
 
     // MASTER BOARD : SENDING START SIGNAL - IN RESET PERIOD 
     if (receivedAck) {
         receivedAck = false;
+        Serial.print("1");
+        DW1000Ng::getReceivedData(data, LEN_DATA);
+        byte msgId = data[0];
+        if (msgId == RANGE) {
+        timePollSent = DW1000Ng::getTransmitTimestamp();
         timeRangeReceived = DW1000Ng::getReceiveTimestamp();
         timePollReceived = DW1000NgUtils::bytesAsValue(data + 1, LENGTH_TIMESTAMP);
         timeRangeSent = DW1000NgUtils::bytesAsValue(data + 6, LENGTH_TIMESTAMP);
@@ -211,11 +242,24 @@ void loop() {
         distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
        */
         double distance;
-        distance = ((timeRangeReceived - timeRangeSent) + (timePollSent - timePollReceived))/2;
+        distance = ((timeRangeReceived - timeRangeSent) + (timePollReceived - timePollSent))/2;
+        distance = distance * DISTANCE_OF_RADIO;
+        distance = DW1000NgRanging::correctRange(distance); 
         //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
         //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
-        String rangeString = "Range: "; rangeString += distance;
+        String rangeString = "Range: "; rangeString += distance; rangeString += " m";
+        //rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
+       
         Serial.println(rangeString);
+        transmitPoll();
+        noteActivity();
+        checkFreq(curMillis);
+        }
+        else if(msgId != RANGE){
+            DW1000Ng::startReceive();
+            noteActivity();
+            return; // goto new loop//        
+        }
      }
 }
 

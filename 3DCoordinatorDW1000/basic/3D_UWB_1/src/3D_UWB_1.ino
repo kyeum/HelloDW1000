@@ -106,7 +106,6 @@ void resetInactive() {
 }
 
 void receiver() {
-    Serial.println(F("receiver start"));
     DW1000Ng::forceTRxOff();
     // so we don't need to restart the receiver manually
     DW1000Ng::startReceive();
@@ -162,12 +161,23 @@ void transmitRange_Basic() {
 
 void loop() {
     
-    if (!sentAck && !receivedAck) {
+    if (!sentAck&&!receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
             resetInactive();
+            Serial.println(F("0"));
+
         }
         return;
+    }
+    if (sentAck) {
+        sentAck = false;
+        byte msgId = data[0];
+        if (msgId == POLL_ACK) {
+            timePollAckSent = DW1000Ng::getTransmitTimestamp();
+            noteActivity();
+        }
+        DW1000Ng::startReceive();
     }
     
     if (receivedAck) {
