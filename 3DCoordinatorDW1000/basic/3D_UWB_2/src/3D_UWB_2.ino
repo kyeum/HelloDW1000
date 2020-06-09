@@ -12,10 +12,10 @@ const uint8_t PIN_SS = SS; // spi select pin
 // messages used in the ranging protocol
 // TODO replace by enum
 #define POLL 4
-#define POLL_ACK 5
-#define RANGE 6
-#define RANGE_REPORT 7
-#define RANGE_FAILED 254
+#define POLL_ACK 1
+#define RANGE 2
+#define RANGE_REPORT 3
+#define RANGE_FAILED 255
 
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;

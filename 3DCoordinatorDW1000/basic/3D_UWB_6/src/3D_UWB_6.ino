@@ -22,12 +22,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE_FAILED 255
 
 #define POLL2 4
-#define POLL_ACK2 5
-#define RANGE2 6
-#define RANGE_REPORT2 7
-#define RANGE_FAILED2 254
-
-
+#define POLL3 5
 
 
 // message flow state
@@ -64,7 +59,12 @@ float samplingRate = 0;
 
 //user defined data
 uint8_t uwbdata[4] = {1,2,3,4};
-uint32_t tmr_1ms = 0;
+
+int uwb_num = 0; // uwb numbering
+double range1 = 0;
+double range2 = 0;
+double range3 = 0;
+
 
 device_configuration_t DEFAULT_CONFIG = {
     false,
@@ -118,8 +118,8 @@ void setup() {
     DW1000Ng::attachReceivedHandler(handleReceived);
     // anchor starts in receiving mode, awaiting a ranging poll message
     
-    delay(2000);
-    transmitPoll(); 
+    delay(1000);
+    transmitPoll(uwb_num); 
     noteActivity();
     // for first time ranging frequency computation
     rangingCountPeriod = millis();
@@ -134,7 +134,9 @@ void resetInactive() {
     // anchor listens for POLL
     expectedMsgId = POLL;
     DW1000Ng::forceTRxOff();
-    transmitPoll();
+    uwb_num++;
+    uwb_num%=3; // total uwb numbering
+    transmitPoll(uwb_num);
     noteActivity();
 }
 
@@ -154,8 +156,16 @@ void transmitPollAck() {
     DW1000Ng::startTransmit();
 }
 
-void transmitPoll() {
-    data[0] = POLL;
+void transmitPoll(int uwb_num) {
+    if(uwb_num == 0){
+        data[0] = POLL;
+    }
+    else if(uwb_num == 1){
+       data[0] = POLL2;
+    }
+    else if(uwb_num == 2){
+       data[0] = POLL3;
+    }
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
@@ -203,9 +213,9 @@ void loop() {
     int32_t curMillis = millis();      
     if (!sentAck&&!receivedAck) {
         // check if inactive
-        if (millis() - lastActivity > resetPeriod) {
+        if (curMillis - lastActivity > resetPeriod) {
+                //Serial.println(F("0"));
             resetInactive();
-            Serial.print("0");
         }
         return;
     }
@@ -222,7 +232,7 @@ void loop() {
     // MASTER BOARD : SENDING START SIGNAL - IN RESET PERIOD 
     if (receivedAck) {
         receivedAck = false;
-        Serial.print("1");
+
         DW1000Ng::getReceivedData(data, LEN_DATA);
         byte msgId = data[0];
         if (msgId == RANGE) {
@@ -247,11 +257,26 @@ void loop() {
         distance = DW1000NgRanging::correctRange(distance); 
         //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
         //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
-        String rangeString = "Range: "; rangeString += distance; rangeString += " m";
-        //rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
+       if(uwb_num==0){
+           range1 = distance;
+       }
+       else if(uwb_num==1){
+           range2 = distance;
+       }
+       else if(uwb_num==2){
+           range3 = distance;
+       }
        
+        String rangeString = "Range1: "; rangeString += range1;
+        rangeString += "Range2: "; rangeString += range2;
+        rangeString += "Range3: "; rangeString += range3;
+
+        //rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
         Serial.println(rangeString);
-        transmitPoll();
+        uwb_num++;
+        uwb_num%=3; // total uwb numbering
+        range1 = 0;range2 = 0;range3 = 0;
+        transmitPoll(uwb_num); // 1
         noteActivity();
         checkFreq(curMillis);
         }
