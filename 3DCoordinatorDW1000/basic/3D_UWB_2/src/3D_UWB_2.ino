@@ -11,12 +11,18 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 4
+//#define POLL 4
 #define POLL_ACK 1
 #define RANGE 2
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
 
+#define POLL1 0
+#define POLL2 4
+#define POLL3 5
+#define POLL4 6
+#define POLL5 7
+#define POLL6 8
 // message flow state
 volatile byte expectedMsgId = POLL_ACK;
 // message sent/received state
@@ -70,7 +76,7 @@ void setup() {
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
-	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);\
+	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
     DW1000Ng::setNetworkId(2);
     DW1000Ng::setAntennaDelay(16530);
         
@@ -123,12 +129,12 @@ void handleReceived() {
 }
 
 void transmitPoll() {
-    data[0] = POLL;
+    data[0] = POLL2;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
 
-void transmitRange_Doublesided() {
+void transmitRange_Doublesided(){
     data[0] = RANGE;
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
@@ -185,12 +191,12 @@ void loop() {
         receivedAck = false;
         DW1000Ng::getReceivedData(data, LEN_DATA);
         byte msgId = data[0];
-        if (msgId != POLL) {
+        if (msgId != POLL2) {
             DW1000Ng::startReceive();
             noteActivity();
             return; // goto new loop//
         }
-        else if (msgId == POLL) {
+        else if (msgId == POLL2) {
             Serial.println("received poll;");
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             transmitRange_Basic();
