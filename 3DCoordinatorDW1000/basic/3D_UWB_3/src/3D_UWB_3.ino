@@ -61,6 +61,8 @@ double range5 = 0;
 double range6 = 0;
 int changecnt = 0;
 
+bool sent_doublechecked = false;
+bool receive_status = true; //define receive possibility!
 //define change right angle
 bool right_ang = false;
 
@@ -135,7 +137,16 @@ void resetInactive() {
 void receiver() {
     DW1000Ng::forceTRxOff();
     // so we don't need to restart the receiver manually
+    //startReceiver();
     DW1000Ng::startReceive();
+}
+
+void startReceiver(){
+    //receive status : true ok 
+    if(receive_status){
+        receive_status = false;
+        DW1000Ng::startReceive();
+    }
 }
 
 void handleSent() {
@@ -146,39 +157,25 @@ void handleSent() {
 void handleReceived() {
     // status change on received success
     receivedAck = true;
+    receive_status = true;
 }
 
 void transmitPoll(int uwb_num) {
     if(uwb_num == 0){
-        data[0] = POLL4;
+       data[0] = POLL4;
     }
     else if(uwb_num == 1){
        data[0] = POLL5;
     }
     DW1000Ng::setTransmitData(data, LEN_DATA);
+                Serial.println(F("3"));
+
     DW1000Ng::startTransmit();
 }
 void transmitChangePoll() {
     data[0] = CHANGELEG;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
-}
-
-
-void transmitRange_Doublesided() {
-    data[0] = RANGE;
-    /* Calculation of future time */
-    byte futureTimeBytes[LENGTH_TIMESTAMP];
-	timeRangeSent = DW1000Ng::getSystemTimestamp();
-	timeRangeSent += DW1000NgTime::microsecondsToUWBTime(replyDelayTimeUS);
-    DW1000NgUtils::writeValueToBytes(futureTimeBytes, timeRangeSent, LENGTH_TIMESTAMP);
-    DW1000Ng::setDelayedTRX(futureTimeBytes);
-    timeRangeSent += DW1000Ng::getTxAntennaDelay();
-    DW1000NgUtils::writeValueToBytes(data + 1, timePollSent, LENGTH_TIMESTAMP);
-    DW1000NgUtils::writeValueToBytes(data + 6, timePollAckReceived, LENGTH_TIMESTAMP);
-    DW1000NgUtils::writeValueToBytes(data + 11, timeRangeSent, LENGTH_TIMESTAMP);
-    DW1000Ng::setTransmitData(data, LEN_DATA);
-    DW1000Ng::startTransmit(TransmitMode::DELAYED);
 }
 
 void transmitRange_Basic() {
@@ -194,6 +191,7 @@ void transmitRange_Basic() {
     DW1000NgUtils::writeValueToBytes(data + 6, timeRangeSent, LENGTH_TIMESTAMP);
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit(TransmitMode::DELAYED);
+
 }
 
 void Send2PC(short dist, short power) {
@@ -216,71 +214,72 @@ void checkFreq(int cur_millis){
 }
 
 void loop() {
-    
     if (!sentAck&&!receivedAck) {
-        // check if inactive
         if (millis() - lastActivity > resetPeriod) {
-            resetInactive();
             Serial.println(F("0"));
-
+            resetInactive();
         }
         return;
     }
     if (sentAck) {
+        if(sent_doublechecked){
+            sent_doublechecked = false;
+          //  transmitPoll(uwb_num);
+            noteActivity();
+            return;
+        }
         sentAck = false;
         byte msgId = data[0];
         if (msgId == POLL_ACK) {
             timePollAckSent = DW1000Ng::getTransmitTimestamp();
             noteActivity();
         }
-        DW1000Ng::startReceive();
+        else{
+          //  startReceiver();
+            DW1000Ng::startReceive();
+        }
     }
-    
-    if (receivedAck) {
+    if  (receivedAck) {
         receivedAck = false;
         DW1000Ng::getReceivedData(data, LEN_DATA);
         byte msgId = data[0];
         if (msgId == POLL3) {
+            Serial.println(F("1"));
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             transmitRange_Basic();
+            _delay_ms(100);
+            transmitPoll(0);
+            //sent_doublechecked = true;
             noteActivity();
-            //transmitPoll(uwb_num);
+            DW1000Ng::startReceive();
+
         }
         else if (msgId == RANGE_R) {
-        timePollSent = DW1000Ng::getTransmitTimestamp();
-        timeRangeReceived = DW1000Ng::getReceiveTimestamp();
-        timePollReceived = DW1000NgUtils::bytesAsValue(data + 1, LENGTH_TIMESTAMP);
-        timeRangeSent = DW1000NgUtils::bytesAsValue(data + 6, LENGTH_TIMESTAMP);
 
-        // (re-)compute range as two-way ranging is done
-       /* double distance = DW1000NgRanging::computeRangeAsymmetric(timePollSent,
-                                                            timePollReceived, 
-                                                            timePollAckSent, 
-                                                            timePollAckReceived, 
-                                                            timeRangeSent, 
-                                                            timeRangeReceived);
+            timePollSent = DW1000Ng::getTransmitTimestamp();
+            timeRangeReceived = DW1000Ng::getReceiveTimestamp();
+            timePollReceived = DW1000NgUtils::bytesAsValue(data + 1, LENGTH_TIMESTAMP);
+            timeRangeSent = DW1000NgUtils::bytesAsValue(data + 6, LENGTH_TIMESTAMP);
 
-        distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
-       */
-        double distance;
-        distance = ((timeRangeReceived - timeRangeSent) + (timePollReceived - timePollSent))/2;
-        distance = distance * DISTANCE_OF_RADIO;
-        distance = DW1000NgRanging::correctRange(distance); 
-        //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
-        //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
-       if(uwb_num==0){
-           range4 = distance;
-       }
-       else if(uwb_num==1){
-           range5 = distance;
-       }
-       Serial.println("2;");
-        String rangeString = "Range1: "; rangeString += range4;
-        rangeString += "Range2: "; rangeString += range5;
+            double distance;
+            distance = ((timeRangeReceived - timeRangeSent) + (timePollReceived - timePollSent))/2;
+            distance = distance * DISTANCE_OF_RADIO;
+            distance = DW1000NgRanging::correctRange(distance); 
+            //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
+            //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
+                if(uwb_num==0){
+                range4 = distance;
+                }
+                else if(uwb_num==1){
+                range5 = distance;
+                }
+            Serial.println("2");
+            String rangeString = "Range1: "; rangeString += range4;
+            rangeString += "Range2: "; rangeString += range5;
 
         //rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
         //Serial.println(rangeString);
-        
+        /*
         uwb_num++;
         uwb_num%=2; // total uwb numbering
         range4 = 0;range5 = 0;
@@ -291,16 +290,13 @@ void loop() {
         else{
         transmitPoll(uwb_num); // 1
         }
+        */
+        //transmitPoll(uwb_num); // 1
+        
         noteActivity();
-        //checkFreq(curMillis);
-        }
-        else if(msgId == CHANGELEG){
-            uwb_num = 0;
-            transmitPoll(uwb_num);
-            noteActivity();
-            return; // goto new loop//        
         }
         else{
+//          startReceiver();
             DW1000Ng::startReceive();
             noteActivity();
             return; // goto new loop//

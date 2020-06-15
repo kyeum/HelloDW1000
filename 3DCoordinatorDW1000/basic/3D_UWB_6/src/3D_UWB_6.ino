@@ -239,11 +239,12 @@ void checkFreq(int cur_millis){
 }
 
 void loop() {
-    int32_t curMillis = millis();      
+    int32_t curMillis = millis();  
+    
     if (!sentAck&&!receivedAck) {
         // check if inactive
         if (curMillis - lastActivity > resetPeriod) {
-               // Serial.println(F("0"));
+            Serial.println(F("0"));
             resetInactive();
         }
         return;
@@ -261,10 +262,10 @@ void loop() {
     // MASTER BOARD : SENDING START SIGNAL - IN RESET PERIOD 
     if (receivedAck) {
         receivedAck = false;
-
         DW1000Ng::getReceivedData(data, LEN_DATA);
         byte msgId = data[0];
         if (msgId == RANGE) {
+
         timePollSent = DW1000Ng::getTransmitTimestamp();
         timeRangeReceived = DW1000Ng::getReceiveTimestamp();
         timePollReceived = DW1000NgUtils::bytesAsValue(data + 1, LENGTH_TIMESTAMP);
@@ -320,9 +321,8 @@ void loop() {
             transmitPoll(uwb_num);
             noteActivity();
             return; // goto new loop//        
-
         }
-        else if(msgId != RANGE){
+        else{
             DW1000Ng::startReceive();
             noteActivity();
             return; // goto new loop//        

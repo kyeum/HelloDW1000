@@ -11,11 +11,17 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 // TODO replace by enum
-#define POLL 7
+//#define POLL 7
 #define POLL_ACK 1
 #define RANGE 2
 #define RANGE_R 9
 
+#define POLL1 0
+#define POLL2 4
+#define POLL3 5
+#define POLL4 6
+#define POLL5 7
+#define POLL6 8
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
 
@@ -125,7 +131,7 @@ void handleReceived() {
 }
 
 void transmitPoll() {
-    data[0] = POLL;
+    data[0] = POLL5;
     DW1000Ng::setTransmitData(data, LEN_DATA);
     DW1000Ng::startTransmit();
 }
@@ -187,12 +193,12 @@ void loop() {
         receivedAck = false;
         DW1000Ng::getReceivedData(data, LEN_DATA);
         byte msgId = data[0];
-        if (msgId != POLL) {
+        if (msgId != POLL5) {
             DW1000Ng::startReceive();
             noteActivity();
             return; // goto new loop//
         }
-        else if (msgId == POLL) {
+        else if (msgId == POLL5) {
             Serial.println("received poll;");
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             transmitRange_Basic();
