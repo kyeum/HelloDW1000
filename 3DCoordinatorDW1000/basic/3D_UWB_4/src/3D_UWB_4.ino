@@ -12,9 +12,9 @@ const uint8_t PIN_SS = SS; // spi select pin
 // messages used in the ranging protocol
 // TODO replace by enum
 //#define POLL 6
-#define POLL_ACK 1
+#define POLL_ACK 9
 #define RANGE 2
-#define RANGE_R 9
+#define RANGE_R 1
 
 #define POLL1 0
 #define POLL2 4
@@ -81,7 +81,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);\
     DW1000Ng::setNetworkId(4);
-    DW1000Ng::setAntennaDelay(16530);
+    DW1000Ng::setAntennaDelay(10000);
         
     // DEBUG chip info and registers pretty printed
     char msg[128];
@@ -204,6 +204,11 @@ void loop() {
             transmitRange_Basic();
             noteActivity();
         } 
+        else{
+            DW1000Ng::startReceive();
+            noteActivity();
+            return; // goto new loop//        
+        }
     }    
 }
 

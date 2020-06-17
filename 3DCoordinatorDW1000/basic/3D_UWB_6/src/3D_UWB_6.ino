@@ -17,7 +17,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 // messages used in the ranging protocol
 //#define POLL 0
-#define POLL_ACK 1
+#define POLL_ACK 9
 #define RANGE 2
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
@@ -29,8 +29,11 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define POLL5 7
 #define POLL6 8
 
-#define RANGE_R 9
+#define RANGE_R 1
 #define CHANGELEG 15
+
+
+
 
 // message flow state
 volatile byte expectedMsgId = POLL1;
@@ -56,7 +59,7 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 10;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 // ranging counter (per second)
@@ -110,7 +113,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
   	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
     DW1000Ng::setDeviceAddress(6); // device set up for each data set : send data to the rx buff.
-    DW1000Ng::setAntennaDelay(16530);
+    DW1000Ng::setAntennaDelay(10000);
     // DEBUG chip info and registers pretty printed
     char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
@@ -185,7 +188,7 @@ void transmitChangePoll() {
 }
 
 void transmitRange_Basic() {
-    data[0] = RANGE;
+    data[0] = RANGE_R;
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
 	timeRangeSent = DW1000Ng::getSystemTimestamp();
@@ -287,6 +290,8 @@ void loop() {
         distance = DW1000NgRanging::correctRange(distance); 
         //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
         //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
+       
+       if(distance> 100) distance = 1;
        if(uwb_num==0){
            range1 = distance;
        }
@@ -296,6 +301,7 @@ void loop() {
        else if(uwb_num==2){
            range3 = distance;
        }
+
        
         String rangeString = "Range1: "; rangeString += range1;
         rangeString += "Range2: "; rangeString += range2;
@@ -305,10 +311,9 @@ void loop() {
         Serial.println(rangeString);
         uwb_num++;
         uwb_num%=3; // total uwb numbering
-        range1 = 0;range2 = 0;range3 = 0;
         transmitPoll(uwb_num); // 1
         noteActivity();
-        checkFreq(curMillis);
+        //checkFreq(curMillis);
         }
         else if(msgId == POLL6){
             Serial.println("received poll;");
@@ -316,15 +321,9 @@ void loop() {
             transmitRange_Basic();
             noteActivity();
         }
-        else if(msgId == CHANGELEG){
-            uwb_num = 0;
-            transmitPoll(uwb_num);
-            noteActivity();
-            return; // goto new loop//        
-        }
         else{
             DW1000Ng::startReceive();
-            noteActivity();
+        
             return; // goto new loop//        
         }
      }
