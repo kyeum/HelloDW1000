@@ -79,7 +79,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);\
     DW1000Ng::setNetworkId(1);
-    DW1000Ng::setAntennaDelay(16530);
+    DW1000Ng::setAntennaDelay(13650);
         
     // DEBUG chip info and registers pretty printed
     char msg[128];

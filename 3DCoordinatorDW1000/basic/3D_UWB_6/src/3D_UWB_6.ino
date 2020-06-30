@@ -68,12 +68,12 @@ uint32_t rangingCountPeriod = 0;
 float samplingRate = 0;
 
 //user defined data
-uint8_t uwbdata[4] = {1,2,3,4};
+uint8_t uwbdata[6] = {1,2,3,4,5,6};
 
 int uwb_num = 0; // uwb numbering
-double range1 = 0;
-double range2 = 0;
-double range3 = 0;
+short range1 = 0;
+short range2 = 0;
+short range3 = 0;
 int changecnt = 0;
 
 
@@ -113,7 +113,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
   	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
     DW1000Ng::setDeviceAddress(6); // device set up for each data set : send data to the rx buff.
-    DW1000Ng::setAntennaDelay(10000);
+    DW1000Ng::setAntennaDelay(0);
     // DEBUG chip info and registers pretty printed
     char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
@@ -247,7 +247,7 @@ void loop() {
     if (!sentAck&&!receivedAck) {
         // check if inactive
         if (curMillis - lastActivity > resetPeriod) {
-            Serial.println(F("0"));
+           // Serial.println(F("0"));
             resetInactive();
         }
         return;
@@ -292,23 +292,34 @@ void loop() {
         //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
        
        if(distance> 100) distance = 1;
+       short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
+
        if(uwb_num==0){
-           range1 = distance;
+           range1 = dist;
        }
        else if(uwb_num==1){
-           range2 = distance;
+           range2 = dist;
        }
        else if(uwb_num==2){
-           range3 = distance;
+           range3 = dist;
        }
 
+        byte txbuf[10]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],uwbdata[4],uwbdata[5],0xFF,0xFE}; //stx, data --- data , etx//
+        uwbdata[0] = (range1 >> 8) & 0xFF; 
+        uwbdata[1] = range1 & 0xFF;
+        uwbdata[2] = (range2 >> 8) & 0xFF; 
+        uwbdata[3] = range2 & 0xFF;
+        uwbdata[4] = (range3 >> 8) & 0xFF; 
+        uwbdata[5] = range3 & 0xFF;     
+
+
+        Serial.write(txbuf,sizeof(txbuf));    
        
         String rangeString = "Range1: "; rangeString += range1;
         rangeString += "Range2: "; rangeString += range2;
         rangeString += "Range3: "; rangeString += range3;
+        //Serial.println(rangeString);
 
-        //rangeString += "\t Sampling: "; rangeString += samplingRate; rangeString += " Hz";
-        Serial.println(rangeString);
         uwb_num++;
         uwb_num%=3; // total uwb numbering
         transmitPoll(uwb_num); // 1
@@ -316,7 +327,7 @@ void loop() {
         //checkFreq(curMillis);
         }
         else if(msgId == POLL6){
-            Serial.println("received poll;");
+           // Serial.println("received poll;");
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             transmitRange_Basic();
             noteActivity();

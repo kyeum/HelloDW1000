@@ -122,7 +122,7 @@ void setup() {
 
     DW1000Ng::setNetworkId(10);
     
-    DW1000Ng::setAntennaDelay(0);
+    DW1000Ng::setAntennaDelay(16421);
     
     Serial.println(F("Committed configuration ..."));
     // DEBUG chip info and registers pretty printed
@@ -193,7 +193,6 @@ void transmitRange() {
 }
 
 void loop() {
-     // Serial.println(F("0xFF"));
     if (!sentAck && !receivedAck) {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {

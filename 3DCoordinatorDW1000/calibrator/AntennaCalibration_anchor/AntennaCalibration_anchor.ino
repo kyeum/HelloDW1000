@@ -70,7 +70,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
 
-#define EXPECTED_RANGE 1 // Recommended value for default values, refer to chapter 8.3.1 of DW1000 User manual 7.94 
+#define EXPECTED_RANGE 1.8 // Recommended value for default values, refer to chapter 8.3.1 of DW1000 User manual 7.94 
 #define EXPECTED_RANGE_EPSILON 0.05
 #define ACCURACY_THRESHOLD 5
 #define ANTENNA_DELAY_STEPS 1
@@ -85,7 +85,7 @@ boolean protocolFailed = false;
 
 // Antenna calibration variables
 int accuracyCounter = 0;
-uint16_t antenna_delay = 16359;
+uint16_t antenna_delay = 16447;
 
 // timestamps to remember
 uint64_t timePollSent;
@@ -102,7 +102,7 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 50;
 // reply times (same on both sides for symm. ranging)
 uint16_t replyDelayTimeUS = 3000;
 // ranging counter (per second)
