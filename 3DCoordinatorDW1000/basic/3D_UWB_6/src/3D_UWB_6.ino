@@ -33,8 +33,6 @@ const uint8_t PIN_SS = SS; // spi select pin
 #define CHANGELEG 15
 
 
-
-
 // message flow state
 volatile byte expectedMsgId = POLL1;
 // message sent/received state
@@ -61,7 +59,7 @@ byte data[LEN_DATA];
 uint32_t lastActivity;
 uint32_t resetPeriod = 10;
 // reply times (same on both sides for symm. ranging)
-uint16_t replyDelayTimeUS = 3000;
+uint16_t replyDelayTimeUS = 1000;
 // ranging counter (per second)
 uint16_t successRangingCount = 0;
 uint32_t rangingCountPeriod = 0;
@@ -113,7 +111,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
   	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
     DW1000Ng::setDeviceAddress(6); // device set up for each data set : send data to the rx buff.
-    DW1000Ng::setAntennaDelay(0);
+    DW1000Ng::setAntennaDelay(16350);
     // DEBUG chip info and registers pretty printed
     char msg[128];
     DW1000Ng::getPrintableDeviceIdentifier(msg);
@@ -285,9 +283,21 @@ void loop() {
         distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
        */
         double distance;
-        distance = ((timeRangeReceived - timeRangeSent) + (timePollReceived - timePollSent))/2;
-        distance = distance * DISTANCE_OF_RADIO;
+        //distance = ((timeRangeReceived - timeRangeSent) + (timePollReceived - timePollSent))/2;
+       // distance = distance * DISTANCE_OF_RADIO;
+
+
+        distance = DW1000NgRanging::computeRangeAsymmetric_2by2_EY(timePollSent,
+                                                            timePollReceived, 
+                                                            timePollAckSent, 
+                                                            timePollAckReceived, 
+                                                            timeRangeSent, 
+                                                            timeRangeReceived);
         distance = DW1000NgRanging::correctRange(distance); 
+
+
+
+
         //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
         //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
        

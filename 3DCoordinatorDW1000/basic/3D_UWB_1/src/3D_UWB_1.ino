@@ -42,9 +42,9 @@ uint64_t timeComputedRange;
 byte data[LEN_DATA];
 // watchdog and reset period
 uint32_t lastActivity;
-uint32_t resetPeriod = 100;
+uint32_t resetPeriod = 10;
 // reply times (same on both sides for symm. ranging)
-uint16_t replyDelayTimeUS = 3000;
+uint16_t replyDelayTimeUS = 1000;
 
 device_configuration_t DEFAULT_CONFIG = {
     false,
@@ -79,7 +79,7 @@ void setup() {
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
 	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);\
     DW1000Ng::setNetworkId(1);
-    DW1000Ng::setAntennaDelay(13650);
+    DW1000Ng::setAntennaDelay(16350);
         
     // DEBUG chip info and registers pretty printed
     char msg[128];
