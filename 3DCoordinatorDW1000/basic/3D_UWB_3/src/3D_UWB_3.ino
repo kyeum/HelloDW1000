@@ -18,7 +18,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 // messages used in the ranging protocol
 //#define POLL 0
 #define POLL_ACK 9
-#define RANGE 2
+#define RANGE_L 2
 #define RANGE_REPORT 3
 #define RANGE_FAILED 255
 
@@ -34,7 +34,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 
 // message flow state
-volatile byte expectedMsgId = POLL1;
+//volatile byte expectedMsgId = POLL1;
 // message sent/received state
 volatile boolean sentAck = false;
 volatile boolean receivedAck = false;
@@ -66,12 +66,15 @@ uint32_t rangingCountPeriod = 0;
 float samplingRate = 0;
 
 //user defined data
-uint8_t uwbdata[6] = {1,2,3,4,5,6};
+uint8_t uwbdata[12] = {1,2,3,4,5,6,7,8,9,10,11,12};
 
 int uwb_num = 0; // uwb numbering
 short range1 = 0;
 short range2 = 0;
 short range3 = 0;
+short power1 = 0;
+short power2 = 0;
+short power3 = 0;
 int changecnt = 0;
 
 
@@ -104,13 +107,13 @@ void setup() {
     Serial.begin(115200);
     // Debug set timer 
     delay(1000);
-    Serial.println(F("###3DUWB_6###"));
+    Serial.println(F("###3DUWB_3###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
     // general configuration
     DW1000Ng::applyConfiguration(DEFAULT_CONFIG);
   	DW1000Ng::applyInterruptConfiguration(DEFAULT_INTERRUPT_CONFIG);
-    DW1000Ng::setDeviceAddress(6); // device set up for each data set : send data to the rx buff.
+    DW1000Ng::setDeviceAddress(3); // device set up for each data set : send data to the rx buff.
     DW1000Ng::setAntennaDelay(16350);
     // DEBUG chip info and registers pretty printed
     char msg[128];
@@ -141,7 +144,7 @@ void noteActivity() {
 
 void resetInactive() {
     // anchor listens for POLL
-    expectedMsgId = POLL1;
+    //expectedMsgId = POLL1;
     DW1000Ng::forceTRxOff();
     uwb_num++;
     uwb_num%=3; // total uwb numbering
@@ -159,12 +162,6 @@ void handleReceived() {
     receivedAck = true;
 }
 
-void transmitPollAck() {
-    data[0] = POLL_ACK;
-    DW1000Ng::setTransmitData(data, LEN_DATA);
-    DW1000Ng::startTransmit();
-}
-
 void transmitPoll(int uwb_num) {
     if(uwb_num == 0){
         data[0] = POLL4;
@@ -179,14 +176,9 @@ void transmitPoll(int uwb_num) {
     DW1000Ng::startTransmit();
 }
 
-void transmitChangePoll() {
-    data[0] = CHANGELEG;
-    DW1000Ng::setTransmitData(data, LEN_DATA);
-    DW1000Ng::startTransmit();
-}
 
 void transmitRange_Basic() {
-    data[0] = RANGE;
+    data[0] = RANGE_L;
     /* Calculation of future time */
     byte futureTimeBytes[LENGTH_TIMESTAMP];
 	timeRangeSent = DW1000Ng::getSystemTimestamp();
@@ -219,15 +211,7 @@ void receiver() {
     // so we don't need to restart the receiver manually
     DW1000Ng::startReceive();
 }
- 
-void Send2PC(short dist, short power) {
-                byte txbuf[8]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],0xFF,0xFE}; //stx, data --- data , etx//
-                uwbdata[0] = (dist >> 8) & 0xFF; 
-                uwbdata[1] = dist & 0xFF;
-                uwbdata[2] = (power >> 8) & 0xFF; 
-                uwbdata[3] = power & 0xFF;
-                Serial.write(txbuf,sizeof(txbuf));    
-}
+
 
 void checkFreq(int cur_millis){
                   // update sampling rate (each second)
@@ -272,49 +256,37 @@ void loop() {
         timePollReceived = DW1000NgUtils::bytesAsValue(data + 1, LENGTH_TIMESTAMP);
         timeRangeSent = DW1000NgUtils::bytesAsValue(data + 6, LENGTH_TIMESTAMP);
 
-        // (re-)compute range as two-way ranging is done
-       /* double distance = DW1000NgRanging::computeRangeAsymmetric(timePollSent,
-                                                            timePollReceived, 
-                                                            timePollAckSent, 
-                                                            timePollAckReceived, 
-                                                            timeRangeSent, 
-                                                            timeRangeReceived);
-
-        distance = DW1000NgRanging::correctRange(distance); // cm단위로 변경
-       */
         double distance;
-        //distance = ((timeRangeReceived - timeRangeSent) + (timePollReceived - timePollSent))/2;
-       // distance = distance * DISTANCE_OF_RADIO;
-
-
         distance = DW1000NgRanging::computeRangeAsymmetric_2by2_EY(timePollSent,
                                                             timePollReceived, 
                                                             timePollAckSent, 
                                                             timePollAckReceived, 
                                                             timeRangeSent, 
                                                             timeRangeReceived);
+                                                            
         distance = DW1000NgRanging::correctRange(distance); 
 
-
-
-
-        //short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
-        //short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
-       
        if(distance> 100) distance = 1;
        short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
+       short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
 
        if(uwb_num==0){
            range1 = dist;
+           power1 = power;
        }
        else if(uwb_num==1){
            range2 = dist;
+           power2 = power;
        }
        else if(uwb_num==2){
            range3 = dist;
+           power3 = power;
        }
 
-        byte txbuf[10]={0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],uwbdata[4],uwbdata[5],0xFF,0xFE}; //stx, data --- data , etx//
+        byte txbuf[16] = {0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],uwbdata[4],uwbdata[5],
+                        uwbdata[6],uwbdata[7],uwbdata[8],uwbdata[9],uwbdata[10],uwbdata[11],0xFF,0xFE}; //stx, data --- data , etx//
+       
+       
         uwbdata[0] = (range1 >> 8) & 0xFF; 
         uwbdata[1] = range1 & 0xFF;
         uwbdata[2] = (range2 >> 8) & 0xFF; 
@@ -322,12 +294,19 @@ void loop() {
         uwbdata[4] = (range3 >> 8) & 0xFF; 
         uwbdata[5] = range3 & 0xFF;     
 
+        uwbdata[6] = (power1 >> 8) & 0xFF; 
+        uwbdata[7] = power1 & 0xFF;
+        uwbdata[8] = (power2 >> 8) & 0xFF; 
+        uwbdata[9] = power2 & 0xFF;
+        uwbdata[10] = (power3 >> 8) & 0xFF; 
+        uwbdata[11] = power3 & 0xFF;     
+
 
         Serial.write(txbuf,sizeof(txbuf));    
        
-        String rangeString = "Range1: "; rangeString += range1;
-        rangeString += "Range2: "; rangeString += range2;
-        rangeString += "Range3: "; rangeString += range3;
+        //String rangeString = "Range1: "; rangeString += range1;
+        //rangeString += "Range2: "; rangeString += range2;
+        //rangeString += "Range3: "; rangeString += range3;
         //Serial.println(rangeString);
 
         uwb_num++;
@@ -337,14 +316,12 @@ void loop() {
         //checkFreq(curMillis);
         }
         else if(msgId == POLL3){
-           // Serial.println("received poll;");
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             transmitRange_Basic();
             noteActivity();
         }
         else{
             DW1000Ng::startReceive();
-        
             return; // goto new loop//        
         }
      }
