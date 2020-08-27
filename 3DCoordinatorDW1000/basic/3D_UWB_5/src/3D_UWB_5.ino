@@ -157,7 +157,7 @@ void loop() {
         // check if inactive
         if (millis() - lastActivity > resetPeriod) {
             resetInactive();
-            Serial.println(F("0"));
+            //Serial.println(F("0"));
 
         }
         return;
@@ -182,7 +182,7 @@ void loop() {
             return; // goto new loop//
         }
         else if (msgId == POLL5) {
-            Serial.println("received poll;");
+            //Serial.println("received poll;");
             timePollReceived = DW1000Ng::getReceiveTimestamp();
             transmitRange_Basic();
             noteActivity();
