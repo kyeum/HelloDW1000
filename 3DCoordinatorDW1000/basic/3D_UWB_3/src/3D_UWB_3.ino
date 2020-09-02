@@ -9,6 +9,8 @@ Todolist
 #include <DW1000NgRanging.hpp>
 #include <DW1000NgTime.hpp>
 #include <math.h>
+#include <SoftwareSerial.h>
+
 
 // connection pins
 const uint8_t PIN_RST = 9; // reset pin
@@ -31,7 +33,7 @@ const uint8_t PIN_SS = SS; // spi select pin
 
 #define RANGE_R 1
 #define CHANGELEG 15
-
+#define UWBmethod 101 // 3by3 : 100 2by2 : 101
 
 // message flow state
 //volatile byte expectedMsgId = POLL1;
@@ -66,15 +68,27 @@ uint32_t rangingCountPeriod = 0;
 float samplingRate = 0;
 
 //user defined data
+#if(UWBmethod == 101)
+
+SoftwareSerial mySerial(6, 5); // RX, TX
+byte variable[80];
+byte index = 0;
+uint8_t uwbdata[16] = {0,};
+uint8_t RxBuf[16] = {0,};
+
+#elif(UWBmethod == 100)
 uint8_t uwbdata[12] = {1,2,3,4,5,6,7,8,9,10,11,12};
+#endif
 
 int uwb_num = 0; // uwb numbering
 short range1 = 0;
 short range2 = 0;
 short range3 = 0;
+short range4 = 0;
 short power1 = 0;
 short power2 = 0;
 short power3 = 0;
+short power4 = 0;
 int changecnt = 0;
 
 
@@ -105,8 +119,14 @@ interrupt_configuration_t DEFAULT_INTERRUPT_CONFIG = {
 void setup() {
     // DEBUG monitoring
     Serial.begin(115200);
-    // Debug set timer 
+    #if(UWBmethod == 101)
+    mySerial.begin(115200);
+    pinMode(4, OUTPUT);
+    digitalWrite(4, LOW);    // turn the LED off by making the voltage LOW
     delay(1000);
+    #endif
+
+    // Debug set timer 
     Serial.println(F("###3DUWB_3###"));
     // initialize the driver
     DW1000Ng::initialize(PIN_SS, PIN_IRQ, PIN_RST);
@@ -224,6 +244,14 @@ void checkFreq(int cur_millis){
 }
 
 void loop() {
+    #if(UWBmethod == 101)
+    while (mySerial.available() > 0) {
+        byte b = mySerial.read();
+        variable[index++] = b;
+    
+    
+    #endif
+    
     int32_t curMillis = millis();  
     
     if (!sentAck&&!receivedAck) {
@@ -270,6 +298,49 @@ void loop() {
        short dist = (short)(distance * 100); // 아두이노 : 16비트 연산가능 //  convert short to hex           
        short power = (short)(DW1000Ng::getReceivePower()* 100); // 2byte 연산
 
+
+        #if(UWBmethod == 101)
+        
+       if(uwb_num==0){
+           range1 = dist;
+           power1 = power;
+       }
+       else if(uwb_num==1){
+           range2 = dist;
+           power2 = power;
+       }
+
+        
+        uwbdata[0] = (range1 >> 8) & 0xFF; 
+        uwbdata[1] = range1 & 0xFF;
+        uwbdata[2] = (range2 >> 8) & 0xFF; 
+        uwbdata[3] = range2 & 0xFF;  
+
+        uwbdata[4] = (power1 >> 8) & 0xFF; 
+        uwbdata[5] = power1 & 0xFF;
+        uwbdata[6] = (power2 >> 8) & 0xFF; 
+        uwbdata[7] = power2 & 0xFF;
+  
+        uwbdata[8] = RxBuf[3]; 
+        uwbdata[9] = RxBuf[4];
+        uwbdata[10] = RxBuf[5]; 
+        uwbdata[11] = RxBuf[6];
+
+        uwbdata[12] = RxBuf[7];
+        uwbdata[13] = RxBuf[8];
+        uwbdata[14] = RxBuf[9];
+        uwbdata[15] = RxBuf[10];
+
+        byte txbuf[20] = {0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],uwbdata[4],uwbdata[5],
+                        uwbdata[6],uwbdata[7],uwbdata[8],uwbdata[9],uwbdata[10],uwbdata[11],uwbdata[12],uwbdata[13],uwbdata[14],uwbdata[15],0xFF,0xFE}; //stx, data --- data , etx//
+
+
+        Serial.write(txbuf,sizeof(txbuf));    
+        uwb_num++;
+        uwb_num%=2; // total uwb numbering
+        
+        #elif(UWBmethod == 100)
+
        if(uwb_num==0){
            range1 = dist;
            power1 = power;
@@ -282,10 +353,8 @@ void loop() {
            range3 = dist;
            power3 = power;
        }
-
         byte txbuf[16] = {0xFF,0xFF,uwbdata[0],uwbdata[1],uwbdata[2],uwbdata[3],uwbdata[4],uwbdata[5],
                         uwbdata[6],uwbdata[7],uwbdata[8],uwbdata[9],uwbdata[10],uwbdata[11],0xFF,0xFE}; //stx, data --- data , etx//
-       
        
         uwbdata[0] = (range1 >> 8) & 0xFF; 
         uwbdata[1] = range1 & 0xFF;
@@ -300,17 +369,12 @@ void loop() {
         uwbdata[9] = power2 & 0xFF;
         uwbdata[10] = (power3 >> 8) & 0xFF; 
         uwbdata[11] = power3 & 0xFF;     
-
-
         Serial.write(txbuf,sizeof(txbuf));    
-       
-        //String rangeString = "Range1: "; rangeString += range1;
-        //rangeString += "Range2: "; rangeString += range2;
-        //rangeString += "Range3: "; rangeString += range3;
-        //Serial.println(rangeString);
-
+        
         uwb_num++;
         uwb_num%=3; // total uwb numbering
+        
+        #endif
         transmitPoll(uwb_num); // 1
         noteActivity();
         //checkFreq(curMillis);
